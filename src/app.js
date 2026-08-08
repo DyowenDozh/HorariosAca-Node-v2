@@ -5,15 +5,22 @@ const app = express();
 // Middleware to parse JSON
 app.use(express.json());
 
+// Import auth middleware
+const verifyToken = require('./middlewares/authMiddleware');
+
 // Import routes
+const authRoutes = require('./routes/authRoutes');
 const teacherRoutes = require('./routes/teacher.routes');
 const subjectRoutes = require('./routes/subject.routes');
 const gradeRoutes = require('./routes/grade.routes');
 
-// Define base routes
-app.use('/api/teachers', teacherRoutes);
-app.use('/api/subjects', subjectRoutes);
-app.use('/api/grades', gradeRoutes);
+// Public routes
+app.use('/api/auth', authRoutes);
+
+// Protected routes - requiere valid JWT token
+app.use('/api/teachers', verifyToken, teacherRoutes);
+app.use('/api/subjects', verifyToken, subjectRoutes);
+app.use('/api/grades', verifyToken, gradeRoutes);
 
 // Base route
 app.get('/', (req, res) => {
