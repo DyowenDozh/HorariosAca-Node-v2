@@ -1,0 +1,306 @@
+{
+  "id": "861225ea-8620-48f0-8461-05cd0ee5b08c",
+  "version": "2.0",
+  "name": "HorariosAca-Test",
+  "url": "http://localhost:5173",
+  "tests": [{
+    "id": "2180c64f-689c-4a7b-9b50-e65a2141dfb0",
+    "name": "TC01 - Login exitoso",
+    "commands": [{
+      "id": "2a4776c4-ecbf-42ed-87ee-b08a98328698",
+      "comment": "",
+      "command": "open",
+      "target": "/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "c7ea0c87-1df7-4f32-85c3-4cbc9cde9e90",
+      "comment": "",
+      "command": "setWindowSize",
+      "target": "770x750",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "682f5e6c-c1ea-4532-ac7c-d34f0e6363fb",
+      "comment": "",
+      "command": "click",
+      "target": "css=div:nth-child(1) > input",
+      "targets": [
+        ["css=div:nth-child(1) > input", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/form/div/input", "xpath:idRelative"],
+        ["xpath=//input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "02800052-5512-41b7-9fdf-5af1be45103e",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"email\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'daniel@test.com'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "4c9c65e9-2496-4801-a410-df7781ba93f1",
+      "comment": "",
+      "command": "click",
+      "target": "css=div:nth-child(2) > input",
+      "targets": [
+        ["css=div:nth-child(2) > input", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/form/div[2]/input", "xpath:idRelative"],
+        ["xpath=//div[2]/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "16f035d5-60fc-4b14-855d-90c3c911373d",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"password\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'MiPassword1!'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "71b52d2e-1ac8-44c7-ae99-34c51f290291",
+      "comment": "",
+      "command": "clickAt",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": "${KEY_ENTER}"
+    }, {
+      "id": "f2dc2d8b-234b-4fbf-91ea-1ff774449926",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=table",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "32422d4a-05c4-458d-ba09-3e326e764102",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=main h2",
+      "targets": [],
+      "value": "css=table"
+    }]
+  }, {
+    "id": "9c120773-4031-4ee0-aca8-c631d75fd977",
+    "name": "TC02 - Login fallido",
+    "commands": [{
+      "id": "50330c38-592c-4ac8-8c81-17fa280327e6",
+      "comment": "",
+      "command": "open",
+      "target": "/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "ec946433-54d9-4b3e-9c1f-2cc5b436b2ed",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"email\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'wrong@test.com'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "c2b95249-1aab-492b-9a24-78d4bb39dfc6",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"password\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'WrongPassword1!'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "ac18fc54-a5f7-4ea6-a2c2-6135d1285522",
+      "comment": "",
+      "command": "click",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "91bc1c6a-6e96-46e8-95f6-b686de0c2cb1",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=p[style*=\"color: red\"]",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "bf1e0124-73d9-46c3-9174-fd2264125901",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=p[style*=\"color: red\"]",
+      "targets": [],
+      "value": ""
+    }]
+  }, {
+    "id": "429781a3-fd4e-4d77-a442-6ad45f2cf19c",
+    "name": "TC03 - Logout",
+    "commands": [{
+      "id": "26533b58-86af-4b2a-878a-0bd76b493914",
+      "comment": "",
+      "command": "open",
+      "target": "\t/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "721f2772-a71a-400d-8689-6add93a5496e",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"email\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'daniel@test.com'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "1e1e0981-cb72-41fa-9fe0-b4d1ca9d949e",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"password\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'MiPassword1!'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "aa6d1ffb-29db-465e-a6c2-3fdeec330705",
+      "comment": "",
+      "command": "click",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "fd29efcf-3928-4460-854b-eec1b2ebb426",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=table",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "8ba6669f-0dfa-41f4-ba42-5f6dfd419e05",
+      "comment": "",
+      "command": "click",
+      "target": "css=button[style*=\"border\"]",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "c957e799-dee5-477c-9c95-53cd66a67ef0",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "137f0143-50de-4100-ac3a-05ece66a8363",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": ""
+    }]
+  }, {
+    "id": "3a150b25-2989-4956-bc92-04af29fbb97d",
+    "name": "TC04 - Dashboard carga profesores",
+    "commands": [{
+      "id": "f8ab3829-5b0c-4ad4-824d-03915a44b4d0",
+      "comment": "",
+      "command": "open",
+      "target": "/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "a405120d-a821-4875-9302-cb6c1044e3e6",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"email\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'daniel@test.com'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "6b469b4b-fe3e-4ad7-86f6-e9f98418f906",
+      "comment": "",
+      "command": "executeScript",
+      "target": "var input = document.querySelector('input[type=\"password\"]'); var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; nativeInputValueSetter.call(input, 'MiPassword1!'); input.dispatchEvent(new Event('input', { bubbles: true }));",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "6c6318ff-71cf-4de5-ab36-a693bf2f92d1",
+      "comment": "",
+      "command": "click",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "64602075-8b7f-4328-bc80-67ebdefe79d5",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=table",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "0f6e2674-cf27-432c-b894-e2e6065dacaf",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=table",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "a659f30d-4f2b-4086-b475-80b09d5fe6b7",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=thead",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "a2323a37-f575-4d88-8840-03df425c692d",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=tbody",
+      "targets": [],
+      "value": ""
+    }]
+  }, {
+    "id": "d039f4b5-fb1a-4148-8ab9-e8ce821306b5",
+    "name": "TC05 - Acceso sin autenticacion",
+    "commands": [{
+      "id": "663f9b5c-84b8-4473-bc09-9d92dee97d44",
+      "comment": "",
+      "command": "open",
+      "target": "/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "ccc54108-49bd-4bac-9fdb-9d1723570d61",
+      "comment": "",
+      "command": "executeScript",
+      "target": "localStorage.removeItem('token'); localStorage.removeItem('user');",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "84456c61-d4ae-4b5f-bf03-876759655e71",
+      "comment": "",
+      "command": "open",
+      "target": "/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "ad8940f3-6409-4343-aa79-76ae5003efca",
+      "comment": "",
+      "command": "waitForElementVisible",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": "5000"
+    }, {
+      "id": "a9d5d3a8-2925-4f85-937d-1b7c181fbd21",
+      "comment": "",
+      "command": "assertElementPresent",
+      "target": "css=button[type=\"submit\"]",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "58b06c23-eb16-4adb-88e6-96785a745341",
+      "comment": "",
+      "command": "assertElementNotPresent",
+      "target": "css=table",
+      "targets": [],
+      "value": ""
+    }]
+  }],
+  "suites": [{
+    "id": "73545df8-a597-4ec2-a753-af2dabf54d25",
+    "name": "Default Suite",
+    "persistSession": false,
+    "parallel": false,
+    "timeout": 300,
+    "tests": []
+  }],
+  "urls": ["http://localhost:5173/"],
+  "plugins": []
+}
