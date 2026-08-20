@@ -4,7 +4,7 @@ const teacherService = require('../services/teacher.service');
 // GET /api/teachers
 const getAllTeachers = async (req, res) => {
     try {
-        const teachers = await teacherService.getAllTeachers();
+        const teachers = await teacherService.getAllTeachers(req.query.schedule_id);
         res.status(200).json({
             message: 'Teachers retrieved successfully',
             total: teachers.length,
@@ -31,11 +31,11 @@ const getTeacherById = async (req, res) => {
 // POST /api/teachers
 const createTeacher = async (req, res) => {
     try {
-        const { teacher_name, amount_hour } = req.body;
+        const { teacher_name, amount_hour, schedule_id } = req.body;
         if (!teacher_name) {
             return res.status(400).json({ message: 'teacher_name is required' });
         }
-        const newTeacher = await teacherService.createTeacher(teacher_name, amount_hour);
+        const newTeacher = await teacherService.createTeacher(teacher_name, amount_hour, schedule_id);
         res.status(201).json({ message: 'Teacher created successfully', data: newTeacher });
     } catch (error) {
         res.status(500).json({ message: error.message });

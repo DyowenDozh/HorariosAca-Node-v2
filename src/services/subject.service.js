@@ -2,9 +2,9 @@
 const pool = require('../config/db');
 
 // Get all subjects
-const getAllSubjects = async () => {
+const getAllSubjects = async (scheduleId) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM subjects');
+        const [rows] = await pool.query('SELECT * FROM subjects WHERE schedule_id = ?', [scheduleId]);
         return rows;
     } catch (error) {
         throw new Error('Error retrieving subjects: ' + error.message);
@@ -22,24 +22,24 @@ const getSubjectById = async (id) => {
 };
 
 // Create new subject
-const createSubject = async (subject_name, color_id) => {
+const createSubject = async (subject_name, color_id, abbreviation, scheduleId) => {
     try {
         const [result] = await pool.query(
-            'INSERT INTO subjects (subject_name, color_id) VALUES (?, ?)',
-            [subject_name, color_id || '#FFFFFF']
+            'INSERT INTO subjects (subject_name, color_id, abbreviation, schedule_id) VALUES (?, ?, ?, ?)',
+            [subject_name, color_id || '#FFFFFF', abbreviation || '', scheduleId]
         );
-        return { subject_id: result.insertId, subject_name, color_id: color_id || '#FFFFFF' };
+        return { subject_id: result.insertId, subject_name, color_id: color_id || '#FFFFFF', abbreviation: abbreviation || '', schedule_id: scheduleId };
     } catch (error) {
         throw new Error('Error creating subject: ' + error.message);
     }
 };
 
 // Update subject
-const updateSubject = async (id, subject_name, color_id) => {
+const updateSubject = async (id, subject_name, color_id, abbreviation) => {
     try {
         const [result] = await pool.query(
-            'UPDATE subjects SET subject_name = ?, color_id = ? WHERE subject_id = ?',
-            [subject_name, color_id, id]
+            'UPDATE subjects SET subject_name = ?, color_id = ?, abbreviation = ? WHERE subject_id = ?',
+            [subject_name, color_id, abbreviation || '', id]
         );
         return result.affectedRows > 0;
     } catch (error) {

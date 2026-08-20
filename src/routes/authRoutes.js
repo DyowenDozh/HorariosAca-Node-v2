@@ -2,11 +2,16 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const verifyToken = require('../middlewares/authMiddleware');
 
-// POST /api/auth/register
+// Rutas públicas
 router.post('/register', authController.register);
-
-// POST /api/auth/login
 router.post('/login', authController.login);
+
+// Rutas protegidas (requieren token JWT)
+router.get('/me', verifyToken, authController.getMe);
+router.put('/me', verifyToken, authController.updateMe);
+router.put('/password', verifyToken, authController.updatePassword);
+router.delete('/me', verifyToken, authController.deleteMe);
 
 module.exports = router;

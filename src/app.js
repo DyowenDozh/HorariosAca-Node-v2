@@ -16,6 +16,10 @@ const authRoutes = require('./routes/authRoutes');
 const teacherRoutes = require('./routes/teacher.routes');
 const subjectRoutes = require('./routes/subject.routes');
 const gradeRoutes = require('./routes/grade.routes');
+const scheduleRoutes = require('./routes/schedule.routes');
+const gradeSubjectRoutes = require('./routes/gradeSubject.routes');
+const teacherConfigRoutes = require('./routes/teacherConfig.routes');
+const prefDetailRoutes = require('./routes/prefDetail.routes');
 
 // Public routes
 app.use('/api/auth', authRoutes);
@@ -24,6 +28,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/teachers', verifyToken, teacherRoutes);
 app.use('/api/subjects', verifyToken, subjectRoutes);
 app.use('/api/grades', verifyToken, gradeRoutes);
+app.use('/api/schedules', verifyToken, scheduleRoutes);
+app.use('/api/grade-subjects', verifyToken, gradeSubjectRoutes);
+app.use('/api/teacher-config', verifyToken, teacherConfigRoutes);
+app.use('/api/pref-details', verifyToken, prefDetailRoutes);
 
 // Base route
 app.get('/', (req, res) => {

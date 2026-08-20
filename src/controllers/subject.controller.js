@@ -4,7 +4,7 @@ const subjectService = require('../services/subject.service');
 // GET /api/subjects
 const getAllSubjects = async (req, res) => {
     try {
-        const subjects = await subjectService.getAllSubjects();
+        const subjects = await subjectService.getAllSubjects(req.query.schedule_id);
         res.status(200).json({
             message: 'Subjects retrieved successfully',
             total: subjects.length,
@@ -31,11 +31,11 @@ const getSubjectById = async (req, res) => {
 // POST de la direccion  /api/subjects
 const createSubject = async (req, res) => {
     try {
-        const { subject_name, color_id } = req.body;
+        const { subject_name, color_id, abbreviation, schedule_id } = req.body;
         if (!subject_name) {
             return res.status(400).json({ message: 'subject_name is required' });
         }
-        const newSubject = await subjectService.createSubject(subject_name, color_id);
+        const newSubject = await subjectService.createSubject(subject_name, color_id, abbreviation, schedule_id);
         res.status(201).json({ message: 'Subject created successfully', data: newSubject });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -45,11 +45,11 @@ const createSubject = async (req, res) => {
 // PUT de la direccion  /api/subjects/:id
 const updateSubject = async (req, res) => {
     try {
-        const { subject_name, color_id } = req.body;
+        const { subject_name, color_id, abbreviation } = req.body;
         if (!subject_name) {
             return res.status(400).json({ message: 'subject_name is required' });
         }
-        const updated = await subjectService.updateSubject(req.params.id, subject_name, color_id);
+        const updated = await subjectService.updateSubject(req.params.id, subject_name, color_id, abbreviation);
         if (!updated) {
             return res.status(404).json({ message: 'Subject not found' });
         }

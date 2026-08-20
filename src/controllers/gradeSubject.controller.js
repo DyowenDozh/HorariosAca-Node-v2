@@ -1,0 +1,24 @@
+// GradeSubject Controller
+const service = require('../services/gradeSubject.service');
+
+// GET /api/grade-subjects/:gradeId
+const getByGrade = async (req, res) => {
+    try {
+        const rows = await service.getByGrade(req.params.gradeId);
+        res.status(200).json({ message: 'Curriculum retrieved', data: rows });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// PUT /api/grade-subjects/:gradeId  → reemplaza la malla del grado
+const replaceForGrade = async (req, res) => {
+    try {
+        await service.replaceForGrade(req.params.gradeId, req.body.items);
+        res.status(200).json({ message: 'Curriculum saved' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { getByGrade, replaceForGrade };

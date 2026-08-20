@@ -2,9 +2,9 @@
 const pool = require('../config/db');
 
 // Get all teachers
-const getAllTeachers = async () => {
+const getAllTeachers = async (scheduleId) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM teachers');
+        const [rows] = await pool.query('SELECT * FROM teachers WHERE schedule_id = ?', [scheduleId]);
         return rows;
     } catch (error) {
         throw new Error('Error retrieving teachers: ' + error.message);
@@ -22,13 +22,13 @@ const getTeacherById = async (id) => {
 };
 
 // Create new teacher
-const createTeacher = async (teacher_name, amount_hour) => {
+const createTeacher = async (teacher_name, amount_hour, scheduleId) => {
     try {
         const [result] = await pool.query(
-            'INSERT INTO teachers (teacher_name, amount_hour) VALUES (?, ?)',
-            [teacher_name, amount_hour || 0]
+            'INSERT INTO teachers (teacher_name, amount_hour, schedule_id) VALUES (?, ?, ?)',
+            [teacher_name, amount_hour || 0, scheduleId]
         );
-        return { teacher_id: result.insertId, teacher_name, amount_hour: amount_hour || 0 };
+        return { teacher_id: result.insertId, teacher_name, amount_hour: amount_hour || 0, schedule_id: scheduleId };
     } catch (error) {
         throw new Error('Error creating teacher: ' + error.message);
     }

@@ -60,4 +60,49 @@ const login = async (email, password) => {
     }
 };
 
-module.exports = { register, login };
+// Obtener perfil del usuario autenticado
+const getProfile = async (userId) => {
+    const [rows] = await pool.query(
+        'SELECT user_id, nombre, email, created_at FROM users WHERE user_id = ?',
+        [userId]
+    );
+    if (rows.length === 0) throw new Error('User not found');
+    return rows[0];
+};
+
+// Actualizar nombre y email
+const updateProfile = async (userId, nombre, email) => {
+    // Verificar que el email no esté usado por otro usuario
+    const [existing] = await pool.query(
+        'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
+        [email, userId]
+    );
+    if (existing.length > 0) throw new Error('Email already registered');
+
+    await pool.query(
+        'UPDATE users SET nombre = ?, email = ? WHERE user_id = ?',
+        [nombre, email, userId]
+    );
+    return { user_id: userId, nombre, email };
+};
+
+// Cambiar contraseña (verifica la actual antes de cambiar)
+const changePassword = async (userId, currentPassword, newPassword) => {
+    const [rows] = await pool.query('SELECT password FROM users WHERE user_id = ?', [userId]);
+    if (rows.length === 0) throw new Error('User not found');
+
+    const isMatch = await bcrypt.compare(currentPassword, rows[0].password);
+    if (!isMatch) throw new Error('Current password is incorrect');
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password = ? WHERE user_id = ?', [hashed, userId]);
+    return { message: 'Password updated' };
+};
+
+// Eliminar cuenta
+const deleteAccount = async (userId) => {
+    await pool.query('DELETE FROM users WHERE user_id = ?', [userId]);
+    return { message: 'Account deleted' };
+};
+
+module.exports = { register, login, getProfile, updateProfile, changePassword, deleteAccount };

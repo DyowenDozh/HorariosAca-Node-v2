@@ -4,7 +4,7 @@ const gradeService = require('../services/grade.service');
 // GET /api/grades
 const getAllGrades = async (req, res) => {
     try {
-        const grades = await gradeService.getAllGrades();
+        const grades = await gradeService.getAllGrades(req.query.schedule_id);
         res.status(200).json({
             message: 'Grades retrieved successfully',
             total: grades.length,
@@ -31,11 +31,11 @@ const getGradeById = async (req, res) => {
 // POST de la direccion /api/grades
 const createGrade = async (req, res) => {
     try {
-        const { grade_name } = req.body;
+        const { grade_name, schedule_id } = req.body;
         if (!grade_name) {
             return res.status(400).json({ message: 'grade_name is required' });
         }
-        const newGrade = await gradeService.createGrade(grade_name);
+        const newGrade = await gradeService.createGrade(grade_name, schedule_id);
         res.status(201).json({ message: 'Grade created successfully', data: newGrade });
     } catch (error) {
         res.status(500).json({ message: error.message });

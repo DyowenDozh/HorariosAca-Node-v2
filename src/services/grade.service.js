@@ -2,9 +2,9 @@
 const pool = require('../config/db');
 
 // Get all grades
-const getAllGrades = async () => {
+const getAllGrades = async (scheduleId) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM grades');
+        const [rows] = await pool.query('SELECT * FROM grades WHERE schedule_id = ?', [scheduleId]);
         return rows;
     } catch (error) {
         throw new Error('Error retrieving grades: ' + error.message);
@@ -22,13 +22,13 @@ const getGradeById = async (id) => {
 };
 
 // Create new grade
-const createGrade = async (grade_name) => {
+const createGrade = async (grade_name, scheduleId) => {
     try {
         const [result] = await pool.query(
-            'INSERT INTO grades (grade_name) VALUES (?)',
-            [grade_name]
+            'INSERT INTO grades (grade_name, schedule_id) VALUES (?, ?)',
+            [grade_name, scheduleId]
         );
-        return { grade_id: result.insertId, grade_name };
+        return { grade_id: result.insertId, grade_name, schedule_id: scheduleId };
     } catch (error) {
         throw new Error('Error creating grade: ' + error.message);
     }

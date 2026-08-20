@@ -1,19 +1,43 @@
 # HorariosAca — Node.js + Express + MySQL + React
 
-Sistema de gestión de horarios académicos con autenticación JWT. Incluye un backend REST API con Node.js/Express y un frontend en React con flujo de autenticación completo.
+Sistema web para la **gestión y configuración de horarios académicos** de instituciones educativas. Permite a un usuario autenticado configurar la estructura de una jornada escolar, registrar asignaturas, grados con su malla curricular, profesores con su disponibilidad y reglas de asignación, y preferencias de organización. Toda la información se almacena en una base de datos relacional normalizada.
+
+La autenticación se realiza con JSON Web Tokens (JWT) y la arquitectura sigue el patrón **Routes → Controller → Service → DB**.
+
+---
 
 ## Tecnologías
 
-| Capa | Tecnología |
-|------|-----------|
-| Backend Runtime | Node.js v26.1.0 |
-| Backend Framework | Express 4.x |
-| Base de datos | MySQL 8.4 |
-| Autenticación | JSON Web Tokens (JWT) |
-| Cifrado | Bcrypt |
-| Frontend | React + Vite |
-| HTTP Client | Axios |
-| Arquitectura | Routes → Controller → Service → DB |
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Backend Runtime | Node.js | 26.1.0 |
+| Backend Framework | Express | 5.2.1 |
+| Base de datos | MySQL | 8.4.3 |
+| Conector BD | mysql2 | 3.23.0 |
+| Autenticación | jsonwebtoken (JWT) | 9.0.3 |
+| Cifrado | bcryptjs | 3.0.3 |
+| Frontend | React | 19.2.8 |
+| Build tool | Vite | 8.2.0 |
+| HTTP Client | axios | 1.19.0 |
+
+---
+
+## Características principales
+
+- **Autenticación JWT** con registro, inicio de sesión y gestión de cuenta.
+- **Gestión de horarios** con persistencia real en MySQL: crear, editar, listar y eliminar.
+- **Borradores y papelera**: los horarios sin terminar se guardan como borrador; la eliminación es un borrado suave (soft delete) con opción de restaurar o eliminar definitivamente.
+- **Aislamiento por horario**: cada horario mantiene sus propias materias, grados y profesores mediante llaves foráneas, sin compartir datos entre horarios.
+- **Asistente de creación en 6 fases**:
+  1. **Estructura** — días laborales, horas por día, duración de clase, hora de inicio y descansos (con diales y arrastrar-y-soltar).
+  2. **Materias** — asignaturas con sigla automática, color y control de duplicados.
+  3. **Grados** — creación de grados y su malla curricular (materias y horas semanales, con opción de copiar de otro grado).
+  4. **Profesores** — materias que imparte, disponibilidad semanal (D/ND), límites y reglas por grado (podrá / deberá / no impartirá).
+  5. **Preferencias** — preferencias generales y detalladas de agrupamiento por clase.
+  6. **Resultado** — cierre del asistente.
+- **Interfaz bilingüe** español / inglés.
+
+> **Nota:** la generación automática del horario sin choques y la exportación a PDF/Excel están planificadas como trabajo futuro. Toda la configuración necesaria para ellas ya se almacena en la base de datos.
 
 ---
 
@@ -23,37 +47,24 @@ Sistema de gestión de horarios académicos con autenticación JWT. Incluye un b
 HorariosAca-Node-v2/
 ├── client/                          # Frontend React
 │   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Login.jsx            # Página de login
-│   │   │   └── Dashboard.jsx        # Página protegida
+│   │   ├── pages/                    # Vistas y fases del asistente
+│   │   ├── components/              # Componentes reutilizables (Modal, Sidebar, Dial...)
 │   │   ├── services/
 │   │   │   └── api.js               # Peticiones HTTP con axios
-│   │   ├── App.jsx                  # Routing por autenticación
+│   │   ├── i18n/                     # Soporte bilingüe ES/EN
 │   │   └── main.jsx
 │   └── package.json
 ├── src/                             # Backend Node.js
 │   ├── config/
 │   │   └── db.js                    # Conexión MySQL
-│   ├── controllers/
-│   │   ├── authController.js        # Login y registro
-│   │   ├── teacher.controller.js
-│   │   ├── subject.controller.js
-│   │   └── grade.controller.js
+│   ├── controllers/                 # Manejo de peticiones HTTP
 │   ├── middlewares/
 │   │   └── authMiddleware.js        # Validación JWT
-│   ├── routes/
-│   │   ├── authRoutes.js            # /api/auth
-│   │   ├── teacher.routes.js        # /api/teachers (protegida)
-│   │   ├── subject.routes.js        # /api/subjects (protegida)
-│   │   └── grade.routes.js          # /api/grades (protegida)
-│   ├── services/
-│   │   ├── authService.js           # Lógica de autenticación
-│   │   ├── teacher.service.js
-│   │   ├── subject.service.js
-│   │   └── grade.service.js
+│   ├── routes/                      # Definición de endpoints
+│   ├── services/                    # Lógica de negocio y consultas SQL
 │   └── app.js
-├── index.js                         # Entry point del servidor
-├── .env                             # Variables de entorno (no incluido)
+├── index.js                         # Punto de entrada del servidor
+├── .env                             # Variables de entorno (no incluido en el repo)
 ├── .gitignore
 └── package.json
 ```
@@ -63,7 +74,7 @@ HorariosAca-Node-v2/
 ## Requisitos previos
 
 - [Node.js](https://nodejs.org/) v18 o superior
-- [MySQL 8.x](https://laragon.org/download/) (recomendado via Laragon)
+- [MySQL 8.x](https://laragon.org/download/) (recomendado vía Laragon)
 - [Postman](https://www.postman.com/downloads/) para probar el backend
 - [Git](https://git-scm.com/downloads)
 
@@ -94,46 +105,30 @@ cd ..
 
 ### 4. Crear la base de datos
 
-Conectarse a MySQL y ejecutar:
+Crear la base de datos `horariosaca_node` y ejecutar los scripts SQL del proyecto para generar las tablas. El modelo relacional está compuesto por las siguientes tablas:
 
-```sql
-CREATE DATABASE IF NOT EXISTS horariosaca_node 
-CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+| Tabla | Descripción |
+|-------|-------------|
+| `users` | Usuarios registrados del sistema. |
+| `schedules` | Horarios; pertenecen a un usuario. |
+| `schedule_days` | Configuración de cada día de un horario. |
+| `schedule_breaks` | Descansos de cada día. |
+| `schedule_prefs` | Preferencias generales del horario. |
+| `subjects` | Asignaturas de un horario. |
+| `grades` | Grados o salones de un horario. |
+| `grade_subjects` | Malla curricular: materias y horas por grado. |
+| `teachers` | Profesores de un horario. |
+| `teacher_subjects` | Materias que imparte cada profesor. |
+| `teacher_availability` | Horas no disponibles de un profesor. |
+| `teacher_day_limits` | Límite diario de horas por profesor. |
+| `teacher_grade_rules` | Reglas por grado (podrá / debe / no impartirá). |
+| `schedule_pref_details` | Preferencias de agrupamiento por clase. |
 
-USE horariosaca_node;
-
-CREATE TABLE IF NOT EXISTS users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS teachers (
-    teacher_id INT AUTO_INCREMENT PRIMARY KEY,
-    teacher_name VARCHAR(100) NOT NULL,
-    amount_hour INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS subjects (
-    subject_id INT AUTO_INCREMENT PRIMARY KEY,
-    subject_name VARCHAR(100) NOT NULL,
-    color_id VARCHAR(10) NOT NULL DEFAULT '#FFFFFF',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS grades (
-    grade_id INT AUTO_INCREMENT PRIMARY KEY,
-    grade_name VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+Todas las relaciones usan llaves foráneas con `ON DELETE CASCADE` para preservar la integridad referencial.
 
 ### 5. Configurar variables de entorno
 
-Crear archivo `.env` en la raíz:
+Crear un archivo `.env` en la raíz:
 
 ```
 PORT=3000
@@ -167,6 +162,25 @@ node node_modules/vite/bin/vite.js
 
 Aplicación disponible en `http://localhost:5173`
 
+> El frontend recarga los cambios automáticamente (Vite). El backend debe reiniciarse manualmente tras modificar su código.
+
+---
+
+## Endpoints de la API
+
+Todos los módulos, salvo autenticación, requieren un token JWT válido en la cabecera `Authorization: Bearer <token>`.
+
+| Módulo | Ruta base | Descripción |
+|--------|-----------|-------------|
+| Autenticación | `/api/auth` | Registro e inicio de sesión (emite JWT). |
+| Horarios | `/api/schedules` | CRUD de horarios, borradores, papelera y finalización. |
+| Materias | `/api/subjects` | CRUD de asignaturas, aisladas por horario. |
+| Grados | `/api/grades` | CRUD de grados, aislados por horario. |
+| Malla curricular | `/api/grade-subjects` | Materias y horas semanales por grado. |
+| Profesores | `/api/teachers` | CRUD de profesores, aislados por horario. |
+| Config. profesor | `/api/teacher-config` | Materias, disponibilidad, límites y reglas por grado. |
+| Preferencias | `/api/pref-details` | Preferencias detalladas de agrupamiento. |
+
 ---
 
 ## Flujo de autenticación
@@ -181,98 +195,15 @@ Aplicación disponible en `http://localhost:5173`
 
 ---
 
-## Endpoints de la API
+## Seguridad
 
-### Autenticación (públicos)
-
-| Método | URL | Descripción |
-|--------|-----|-------------|
-| POST | `/api/auth/register` | Registrar usuario |
-| POST | `/api/auth/login` | Iniciar sesión → devuelve JWT |
-
-### Teachers (protegidos — requieren JWT)
-
-| Método | URL | Descripción |
-|--------|-----|-------------|
-| GET | `/api/teachers` | Get all teachers |
-| GET | `/api/teachers/:id` | Get teacher by ID |
-| POST | `/api/teachers` | Create teacher |
-| PUT | `/api/teachers/:id` | Update teacher |
-| DELETE | `/api/teachers/:id` | Delete teacher |
-
-### Subjects (protegidos)
-
-| Método | URL | Descripción |
-|--------|-----|-------------|
-| GET | `/api/subjects` | Get all subjects |
-| POST | `/api/subjects` | Create subject |
-| PUT | `/api/subjects/:id` | Update subject |
-| DELETE | `/api/subjects/:id` | Delete subject |
-
-### Grades (protegidos)
-
-| Método | URL | Descripción |
-|--------|-----|-------------|
-| GET | `/api/grades` | Get all grades |
-| POST | `/api/grades` | Create grade |
-| PUT | `/api/grades/:id` | Update grade |
-| DELETE | `/api/grades/:id` | Delete grade |
+- El archivo `.env` **no** se incluye en el repositorio (está en `.gitignore`).
+- Las contraseñas se almacenan **hasheadas con bcrypt**, nunca en texto plano.
+- El acceso a los módulos de gestión está protegido con JWT.
+- El token expira en 24 horas.
 
 ---
 
-## Pruebas con Postman
+## Estado del proyecto
 
-### 1. Registrar usuario
-- **POST** `http://localhost:3000/api/auth/register`
-- Body:
-```json
-{
-    "nombre": "Daniel Ortiz",
-    "email": "daniel@test.com",
-    "password": "MiPassword1!"
-}
-```
-
-### 2. Login
-- **POST** `http://localhost:3000/api/auth/login`
-- Body:
-```json
-{
-    "email": "daniel@test.com",
-    "password": "MiPassword1!"
-}
-```
-- Respuesta: `{ "token": "eyJ...", "user": {...} }`
-
-### 3. Ruta protegida sin token
-- **GET** `http://localhost:3000/api/teachers`
-- Respuesta: `401 Unauthorized` — `{ "message": "No token provided" }`
-
-### 4. Ruta protegida con token
-- **GET** `http://localhost:3000/api/teachers`
-- Header: `Authorization: Bearer <token>`
-- Respuesta: `200 OK` — lista de profesores
-
----
-
-## Códigos de estado HTTP
-
-| Código | Significado |
-|--------|-------------|
-| 200 OK | Petición exitosa |
-| 201 Created | Recurso creado |
-| 400 Bad Request | Datos inválidos |
-| 401 Unauthorized | Sin token |
-| 403 Forbidden | Token inválido o expirado |
-| 404 Not Found | Recurso no encontrado |
-| 409 Conflict | Email ya registrado |
-| 500 Internal Server Error | Error del servidor |
-
----
-
-## Notas
-
-- El archivo `.env` no está incluido en el repositorio. Debe crearse manualmente.
-- Las contraseñas se almacenan hasheadas con **bcrypt** — nunca en texto plano.
-- El token JWT expira en **24 horas**.
-- Si MySQL tiene contraseña, agregar en `.env`: `DB_PASSWORD=tu_contraseña`
+Este repositorio corresponde a la evidencia **GA8-220501096-AA1-EV02: Módulos integrados** del programa Análisis y Desarrollo de Software (SENA). Los módulos de autenticación, gestión de horarios y las fases de configuración (estructura, materias, grados, profesores y preferencias) se encuentran integrados y funcionales con persistencia real en base de datos. La generación automática del horario y la exportación quedan documentadas como trabajo futuro.
