@@ -25,7 +25,7 @@ function computeWeeklyHours(dayMode, days, workDays) {
         .reduce((sum, k) => sum + (Number(days[k]?.hoursPerDay) || 0), 0);
 }
 
-function Grades({ scheduleId, dayMode, days, workDays }) {
+function Grades({ scheduleId, dayMode, days, workDays, newGradeSignal }) {
     const { t } = useLanguage();
     const [grades, setGrades] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -59,6 +59,15 @@ function Grades({ scheduleId, dayMode, days, workDays }) {
     useEffect(() => { load(); }, []);
 
     const openCreate = () => { setName(''); setFormOpen(true); };
+
+    // Señal desde el asistente ("Añadir otro grado") sale de la malla y
+    // abre directamente el formulario de nuevo grado.
+    useEffect(() => {
+        if (!newGradeSignal) return;
+        setCurriculumGrade(null);
+        openCreate();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [newGradeSignal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

@@ -53,6 +53,10 @@ function CreateSchedule({ onBack, editingId }) {
     const [pendingAction, setPendingAction] = useState(null);
     // Modal al salir de un borrador con datos
     const [draftExitPrompt, setDraftExitPrompt] = useState(false);
+    // Modal al pulsar "Siguiente" en la fase de Grados (fase 3)
+    const [gradeContinuePrompt, setGradeContinuePrompt] = useState(false);
+    // para que módulo de Grados abra el formulario de "Nuevo grado"
+    const [newGradeSignal, setNewGradeSignal] = useState(0);
 
     const currentSnapshot = () => JSON.stringify({ name, general, dayMode, workDays, days, prefs });
 
@@ -136,7 +140,11 @@ function CreateSchedule({ onBack, editingId }) {
         else action();
     };
 
-    const next = () => guardedGo(() => setPhase(p => Math.min(TOTAL_PHASES, p + 1)));
+    const next = () => {
+        // En la fase de Grados, preguntar si añadir otro grado o pasar a Profesores
+        if (phase === 3) { setGradeContinuePrompt(true); return; }
+        guardedGo(() => setPhase(p => Math.min(TOTAL_PHASES, p + 1)));
+    };
     const prev = () => guardedGo(() => setPhase(p => Math.max(1, p - 1)));
 
     // Volver a la lista: si es un borrador (nuevo) sin nombre/datos, decidir si descartar
@@ -304,7 +312,7 @@ function CreateSchedule({ onBack, editingId }) {
                     <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase2_hint')}</p><Subjects scheduleId={activeId} /></div>
                 )}
                 {phase === 3 && (
-                    <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase3_hint')}</p><Grades scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} /></div>
+                    <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase3_hint')}</p><Grades scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} newGradeSignal={newGradeSignal} /></div>
                 )}
                 {phase === 4 && (
                     <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase4_hint')}</p><Teachers scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} /></div>
@@ -330,7 +338,18 @@ function CreateSchedule({ onBack, editingId }) {
                 )}
             </div>
 
-            {/* Modal: cambios sin guardar */}
+            {/* Modal añadir otro grado o continuar a Profesores? */}
+            {gradeContinuePrompt && (
+                <Modal title="Grados" onClose={() => setGradeContinuePrompt(false)}>
+                    <p className="confirm-text">¿Deseas añadir otro grado o continuar con los profesores?</p>
+                    <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
+                        <button className="btn-secondary" onClick={() => { setGradeContinuePrompt(false); setNewGradeSignal(s => s + 1); }}>+ Añadir otro grado</button>
+                        <button className="submit-btn" onClick={() => { setGradeContinuePrompt(false); setPhase(4); }}>Continuar a Profesores →</button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Modal cambios sin guardar */}
             {pendingAction && (
                 <Modal title={t('unsaved_title')} onClose={modalCancel}>
                     <p className="confirm-text">{t('unsaved_text')}</p>
