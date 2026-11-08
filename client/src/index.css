@@ -1436,3 +1436,44 @@ body {
 .gen-subj { font-weight: 700; color: #333; }
 .gen-teacher { font-size: 0.7rem; color: #666; margin-top: 2px; }
 .gen-empty { color: #ccc; padding: 8px 0; }
+
+/* Paleta de colores de materias */
+.color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: transform .1s ease;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.selected {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px #111;
+}
+.color-swatch.custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    position: relative;
+    overflow: hidden;
+    background: conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.color-swatch.custom input[type="color"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+}

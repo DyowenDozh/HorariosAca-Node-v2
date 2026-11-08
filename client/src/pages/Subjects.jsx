@@ -14,6 +14,14 @@ const PREDEFINED = [
     'Informática', 'Cálculo', 'Física', 'Química', 'Estadística',
 ];
 
+// Paleta de 20 colores para materias
+const SUBJECT_COLORS = [
+    '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16',
+    '#22C55E', '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9',
+    '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7', '#D946EF',
+    '#EC4899', '#F43F5E', '#78716C', '#64748B', '#0F766E',
+];
+
 // Genera sigla por defecto: 3 primeras letras en mayúscula (sin tildes)
 function defaultAbbr(name) {
     const clean = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -234,12 +242,24 @@ function Subjects({ scheduleId }) {
 
                         <div className="input-group">
                             <label>{t('subj_color') !== 'subj_color' ? t('subj_color') : 'Color identificador'}</label>
-                            <input
-                                type="color"
-                                value={color}
-                                onChange={(e) => setColor(e.target.value)}
-                                style={{ height: '48px', padding: '4px', cursor: 'pointer' }}
-                            />
+                            <div className="color-swatches">
+                                {SUBJECT_COLORS.map(c => (
+                                    <button
+                                        type="button"
+                                        key={c}
+                                        className={`color-swatch ${color.toLowerCase() === c.toLowerCase() ? 'selected' : ''}`}
+                                        style={{ backgroundColor: c }}
+                                        onClick={() => setColor(c)}
+                                        title={c}
+                                        aria-label={c}
+                                    />
+                                ))}
+                                {/* Color personalizado abre el selector del sistema */}
+                                <label className="color-swatch custom" title="Color personalizado">
+                                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+                                    +
+                                </label>
+                            </div>
                         </div>
 
                         <div className="modal-actions">
