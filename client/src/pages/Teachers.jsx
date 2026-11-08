@@ -471,6 +471,36 @@ function TeacherCard({ teacher, scheduleId, dayMode, days, workDays, onBack, t }
                                 {t('assign_grades') !== 'assign_grades' ? t('assign_grades') : 'Asignación a grados'} →
                             </button>
                         )}
+                        {/* Resumen: grados en los que imparte (reglas DEBE), sin abrir la asignación */}
+                        {(() => {
+                            const assigned = mySubjects
+                                .map(s => ({
+                                    subject: s,
+                                    grades: allGrades.filter(g => rules[`${s.subject_id}-${g.grade_id}`] === 'DEBE'),
+                                }))
+                                .filter(x => x.grades.length > 0);
+                            if (assigned.length === 0) return null;
+                            return (
+                                <div style={{ marginTop: '16px' }}>
+                                    <p style={{ textTransform: 'uppercase', fontSize: '0.78rem', color: 'var(--text-soft)', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                                        Grados en los que imparte
+                                    </p>
+                                    {assigned.map(({ subject, grades }) => (
+                                        <div key={subject.subject_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '0.9rem' }}>
+                                                <span className="color-dot" style={{ backgroundColor: subject.color_id }}></span>
+                                                {subject.subject_name}:
+                                            </span>
+                                            {grades.map(g => (
+                                                <span key={g.grade_id} style={{ background: 'var(--primary-soft, #ecebfb)', color: 'var(--primary-dark, #4b45b0)', padding: '3px 10px', borderRadius: '12px', fontSize: '0.84rem', fontWeight: 600 }}>
+                                                    {g.grade_name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
 
                         <div className="modal-actions" style={{ marginTop: '20px' }}>
                             {savedMsg && <span className="global-msg" style={{ color: 'var(--success)', marginRight: 'auto' }}>{savedMsg}</span>}
