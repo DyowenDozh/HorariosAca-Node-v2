@@ -151,7 +151,7 @@ function Teachers({ scheduleId, dayMode, days, workDays }) {
                     <form onSubmit={handleSubmit}>
                         <div className="input-group">
                             <label>{t('teacher_name_col') !== 'teacher_name_col' ? t('teacher_name_col') : 'Nombre del profesor'}</label>
-                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Juan Pérez" required />
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Manuel Alejandro Gutierrez" required />
                         </div>
                         <div className="input-group">
                             <label>{t('teacher_hours_label') !== 'teacher_hours_label' ? t('teacher_hours_label') : 'Horas por semana'}</label>

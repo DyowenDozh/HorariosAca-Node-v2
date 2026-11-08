@@ -1426,3 +1426,13 @@ body {
 .avail-hour { color: var(--text-soft); font-size: 0.8rem; white-space: nowrap; }
 .avail-cell { display: block; width: 100%; min-width: 42px; padding: 7px 0; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; }
 
+/* --------- Cuadrícula del horario generado (Fase 6) --------- */
+.gen-grid { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+.gen-grid th { padding: 6px 8px; color: var(--text-soft); font-weight: 600; text-align: center; border-bottom: 2px solid var(--border); }
+.gen-grid td { padding: 3px; text-align: center; vertical-align: top; border: 1px solid #f0f0f0; min-width: 90px; }
+.gen-hour { color: var(--text-soft); font-weight: 600; background: #faf9ff; }
+.gen-off { background: #f7f7f7; }
+.gen-cell { border-radius: 5px; padding: 5px 6px; text-align: left; }
+.gen-subj { font-weight: 700; color: #333; }
+.gen-teacher { font-size: 0.7rem; color: #666; margin-top: 2px; }
+.gen-empty { color: #ccc; padding: 8px 0; }

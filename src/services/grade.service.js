@@ -1,29 +1,46 @@
 // Grade Service - Business logic for grade operations
+// BUG-001 (corregido): verifica propietario vía grades -> schedules.user_id.
 const pool = require('../config/db');
 
-// Get all grades
-const getAllGrades = async (scheduleId) => {
+const userOwnsSchedule = async (userId, scheduleId) => {
+    const [rows] = await pool.query(
+        'SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?',
+        [scheduleId, userId]
+    );
+    return rows.length > 0;
+};
+
+const getAllGrades = async (userId, scheduleId) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM grades WHERE schedule_id = ?', [scheduleId]);
+        const [rows] = await pool.query(
+            `SELECT g.* FROM grades g
+             JOIN schedules sc ON sc.schedule_id = g.schedule_id
+             WHERE g.schedule_id = ? AND sc.user_id = ?`,
+            [scheduleId, userId]
+        );
         return rows;
     } catch (error) {
         throw new Error('Error retrieving grades: ' + error.message);
     }
 };
 
-// Get grade by ID
-const getGradeById = async (id) => {
+const getGradeById = async (userId, id) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM grades WHERE grade_id = ?', [id]);
+        const [rows] = await pool.query(
+            `SELECT g.* FROM grades g
+             JOIN schedules sc ON sc.schedule_id = g.schedule_id
+             WHERE g.grade_id = ? AND sc.user_id = ?`,
+            [id, userId]
+        );
         return rows[0] || null;
     } catch (error) {
         throw new Error('Error retrieving grade: ' + error.message);
     }
 };
 
-// Create new grade
-const createGrade = async (grade_name, scheduleId) => {
+const createGrade = async (userId, grade_name, scheduleId) => {
     try {
+        if (!(await userOwnsSchedule(userId, scheduleId))) return null;
         const [result] = await pool.query(
             'INSERT INTO grades (grade_name, schedule_id) VALUES (?, ?)',
             [grade_name, scheduleId]
@@ -34,12 +51,13 @@ const createGrade = async (grade_name, scheduleId) => {
     }
 };
 
-// Update grade
-const updateGrade = async (id, grade_name) => {
+const updateGrade = async (userId, id, grade_name) => {
     try {
         const [result] = await pool.query(
-            'UPDATE grades SET grade_name = ? WHERE grade_id = ?',
-            [grade_name, id]
+            `UPDATE grades SET grade_name = ?
+             WHERE grade_id = ?
+               AND schedule_id IN (SELECT schedule_id FROM schedules WHERE user_id = ?)`,
+            [grade_name, id, userId]
         );
         return result.affectedRows > 0;
     } catch (error) {
@@ -47,10 +65,14 @@ const updateGrade = async (id, grade_name) => {
     }
 };
 
-// Delete grade
-const deleteGrade = async (id) => {
+const deleteGrade = async (userId, id) => {
     try {
-        const [result] = await pool.query('DELETE FROM grades WHERE grade_id = ?', [id]);
+        const [result] = await pool.query(
+            `DELETE FROM grades
+             WHERE grade_id = ?
+               AND schedule_id IN (SELECT schedule_id FROM schedules WHERE user_id = ?)`,
+            [id, userId]
+        );
         return result.affectedRows > 0;
     } catch (error) {
         throw new Error('Error deleting grade: ' + error.message);

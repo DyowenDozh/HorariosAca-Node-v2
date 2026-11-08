@@ -1,8 +1,30 @@
 // TeacherConfig Service - Configuración avanzada del profesor (Fase 4)
+// BUG-001 (corregido): verifica que el profesor/horario pertenezca al usuario.
 const pool = require('../config/db');
 
-// Carga toda la config de un profesor
-const getConfig = async (teacherId) => {
+// ¿El profesor pertenece a un horario del usuario?
+const userOwnsTeacher = async (userId, teacherId) => {
+    const [rows] = await pool.query(
+        `SELECT t.teacher_id FROM teachers t
+         JOIN schedules s ON s.schedule_id = t.schedule_id
+         WHERE t.teacher_id = ? AND s.user_id = ?`,
+        [teacherId, userId]
+    );
+    return rows.length > 0;
+};
+
+// ¿El horario pertenece al usuario?
+const userOwnsSchedule = async (userId, scheduleId) => {
+    const [rows] = await pool.query(
+        'SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?',
+        [scheduleId, userId]
+    );
+    return rows.length > 0;
+};
+
+// Carga toda la config de un profesor (solo si es del usuario)
+const getConfig = async (userId, teacherId) => {
+    if (!(await userOwnsTeacher(userId, teacherId))) return null;
     const [subjects] = await pool.query(
         `SELECT ts.subject_id, s.subject_name, s.color_id, s.abbreviation
          FROM teacher_subjects ts JOIN subjects s ON s.subject_id = ts.subject_id
@@ -20,8 +42,9 @@ const getConfig = async (teacherId) => {
     return { subjects, availability, dayLimits, rules };
 };
 
-// Guarda (reemplaza) toda la config del profesor en una transacción
-const saveConfig = async (teacherId, payload) => {
+// Guarda (reemplaza) toda la config del profesor en una transacción (solo si es del usuario)
+const saveConfig = async (userId, teacherId, payload) => {
+    if (!(await userOwnsTeacher(userId, teacherId))) return false;
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
@@ -69,11 +92,9 @@ const saveConfig = async (teacherId, payload) => {
     }
 };
 
-// Contexto del horario para la ficha de un profesor:
-// - horas de cada materia en cada grado (de las mallas curriculares)
-// - reglas DEBE de OTROS profesores (para bloquear grados ya tomados)
-const getScheduleContext = async (scheduleId, excludeTeacherId) => {
-    // Horas por (grade_id, subject_id) según grade_subjects, filtrando por horario
+// Contexto del horario (solo si el horario es del usuario)
+const getScheduleContext = async (userId, scheduleId, excludeTeacherId) => {
+    if (!(await userOwnsSchedule(userId, scheduleId))) return null;
     const [mallas] = await pool.query(
         `SELECT gs.grade_id, gs.subject_id, gs.weekly_hours
          FROM grade_subjects gs
@@ -81,7 +102,6 @@ const getScheduleContext = async (scheduleId, excludeTeacherId) => {
          WHERE g.schedule_id = ?`,
         [scheduleId]
     );
-    // Reglas DEBE de otros profesores del mismo horario
     const [takenRows] = await pool.query(
         `SELECT tgr.subject_id, tgr.grade_id, tgr.teacher_id, t.teacher_name
          FROM teacher_grade_rules tgr

@@ -7,7 +7,8 @@ const getByGrade = async (req, res) => {
         const rows = await service.getByGrade(req.params.gradeId);
         res.status(200).json({ message: 'Curriculum retrieved', data: rows });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -17,7 +18,8 @@ const replaceForGrade = async (req, res) => {
         await service.replaceForGrade(req.params.gradeId, req.body.items);
         res.status(200).json({ message: 'Curriculum saved' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 

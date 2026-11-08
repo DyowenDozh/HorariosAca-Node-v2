@@ -12,7 +12,8 @@ import Teachers from './Teachers';
 import { Phase1DayConfig, defaultDay } from './Phase1DayConfig';
 import {
     getScheduleById, updateSchedule, createDraft, draftHasData,
-    finalizeSchedule, deleteSchedulePermanent, getPrefDetails, savePrefDetails
+    finalizeSchedule, deleteSchedulePermanent, getPrefDetails, savePrefDetails,
+    generateSchedule, getGeneratedSchedule
 } from '../services/api';
 
 const TOTAL_PHASES = 6;
@@ -259,7 +260,7 @@ function CreateSchedule({ onBack, editingId }) {
                                 <label>{t('phase1_institution')}</label>
                                 <input type="text" value={general.institution}
                                     onChange={(e) => setGeneral(g => ({ ...g, institution: e.target.value }))}
-                                    placeholder="Ej: Colegio San José" />
+                                    placeholder="Ej: I.E. José Hilario López" />
                             </div>
                             <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                                 <div className="input-group" style={{ flex: 1, minWidth: '160px' }}>
@@ -299,7 +300,7 @@ function CreateSchedule({ onBack, editingId }) {
                     <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase4_hint')}</p><Teachers scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} /></div>
                 )}
                 {phase === 5 && <Phase5 prefs={prefs} setPrefs={setPrefs} scheduleId={activeId} t={t} />}
-                {phase === 6 && <Phase6 t={t} />}
+                {phase === 6 && <Phase6 scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} t={t} />}
             </div>
 
             {saveError && <p className="global-msg bad" style={{ marginBottom: '10px' }}>{saveError}</p>}
@@ -543,15 +544,116 @@ function Phase5Detailed({ scheduleId, t }) {
 }
 
 /* ---------- Fase 6: Resultado ---------- */
-function Phase6({ t }) {
+function Phase6({ scheduleId, dayMode, days, workDays, t }) {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [rows, setRows] = useState(null);     // clases generadas
+    const [stats, setStats] = useState(null);
+    const [loaded, setLoaded] = useState(false); // ¿ya intentamos cargar uno existente?
+
+    const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+    const dayLabels = { lun: t('day_mon'), mar: t('day_tue'), mie: t('day_wed'), jue: t('day_thu'), vie: t('day_fri'), sab: t('day_sat'), dom: t('day_sun') };
+
+    // Días activos y su número de franjas (desde la Fase 1)
+    const activeDays = DAY_ORDER.filter(k => workDays?.[k]);
+    const hoursOf = (dk) => dayMode === 'uniform' ? (Number(days?.all?.hoursPerDay) || 0) : (Number(days?.[dk]?.hoursPerDay) || 0);
+    const maxHours = Math.max(0, ...activeDays.map(hoursOf));
+
+    // Al entrar, intenta cargar un horario ya generado
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await getGeneratedSchedule(scheduleId);
+                if (res.data && res.data.length > 0) setRows(res.data);
+            } catch { /* ninguno aún */ }
+            finally { setLoaded(true); }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleGenerate = async () => {
+        setLoading(true); setError('');
+        try {
+            const res = await generateSchedule(scheduleId);
+            if (!res.ok) { setError(res.message); setRows(null); }
+            else {
+                setStats(res.stats);
+                const got = await getGeneratedSchedule(scheduleId);
+                setRows(got.data || []);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || t('gen_error'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Agrupar clases por grado
+    const grades = rows ? [...new Map(rows.map(r => [r.grade_id, r.grade_name])).entries()] : [];
+    const cellFor = (gradeId, dk, h) => rows.find(r => r.grade_id === gradeId && r.day_key === dk && r.hour_index === h);
+
     return (
-        <div className="settings-card" style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ padding: '30px 0' }}>
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '15px' }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+        <div className="settings-card" style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', padding: rows ? '10px 0 20px' : '30px 0' }}>
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px' }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>{t('phase6_ready_title')}</h2>
-                <p style={{ color: 'var(--text-soft)', maxWidth: '480px', margin: '0 auto' }}>{t('phase6_ready_text')}</p>
-                <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '20px' }}>{t('phase6_premium_note')}</p>
+                <p style={{ color: 'var(--text-soft)', maxWidth: '520px', margin: '0 auto 18px' }}>{t('gen_intro')}</p>
+                <button className="submit-btn" onClick={handleGenerate} disabled={loading}>
+                    {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
+                </button>
             </div>
+
+            {error && (
+                <div className="global-msg bad" style={{ marginTop: '10px' }}>
+                    {error}
+                </div>
+            )}
+
+            {stats && !error && (
+                <p style={{ textAlign: 'center', color: 'var(--success)', fontSize: '0.9rem' }}>
+                    {t('gen_success')} · {stats.units} {t('gen_classes_placed')}
+                </p>
+            )}
+
+            {/* Cuadrículas por grado */}
+            {rows && grades.map(([gradeId, gradeName]) => (
+                <div key={gradeId} style={{ marginTop: '24px', overflowX: 'auto' }}>
+                    <h3 style={{ color: 'var(--primary-dark)', marginBottom: '10px' }}>{gradeName}</h3>
+                    <table className="gen-grid">
+                        <thead>
+                            <tr>
+                                <th>{t('hour_word')}</th>
+                                {activeDays.map(dk => <th key={dk}>{dayLabels[dk]}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.from({ length: maxHours }).map((_, h) => (
+                                <tr key={h}>
+                                    <td className="gen-hour">{h + 1}</td>
+                                    {activeDays.map(dk => {
+                                        if (h >= hoursOf(dk)) return <td key={dk} className="gen-off"></td>;
+                                        const c = cellFor(gradeId, dk, h);
+                                        return (
+                                            <td key={dk}>
+                                                {c ? (
+                                                    <div className="gen-cell" style={{ background: (c.color_id || '#eee') + '22', borderLeft: `3px solid ${c.color_id || '#999'}` }}>
+                                                        <div className="gen-subj">{c.abbreviation || c.subject_name}</div>
+                                                        <div className="gen-teacher">{c.teacher_name || t('unassigned')}</div>
+                                                    </div>
+                                                ) : <div className="gen-empty">—</div>}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ))}
+
+            {loaded && !rows && !error && !loading && (
+                <p style={{ textAlign: 'center', color: '#aaa', fontSize: '0.85rem', marginTop: '10px' }}>{t('gen_none_yet')}</p>
+            )}
         </div>
     );
 }

@@ -6,7 +6,8 @@ const getRows = async (req, res) => {
         const rows = await service.getRows(req.query.schedule_id);
         res.status(200).json({ message: 'Preference details retrieved', data: rows });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -15,7 +16,8 @@ const saveRows = async (req, res) => {
         await service.saveRows(req.body.schedule_id, req.body.items);
         res.status(200).json({ message: 'Preference details saved' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 

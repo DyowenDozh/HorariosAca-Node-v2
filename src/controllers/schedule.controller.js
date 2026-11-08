@@ -7,7 +7,8 @@ const getAll = async (req, res) => {
         const list = await scheduleService.getSchedulesByUser(req.user.user_id);
         res.status(200).json({ message: 'Schedules retrieved', total: list.length, data: list });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -18,7 +19,8 @@ const getOne = async (req, res) => {
         if (!schedule) return res.status(404).json({ message: 'Schedule not found' });
         res.status(200).json({ message: 'Schedule retrieved', data: schedule });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -29,7 +31,8 @@ const create = async (req, res) => {
         const result = await scheduleService.createSchedule(req.user.user_id, req.body);
         res.status(201).json({ message: 'Schedule created', data: result });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -40,7 +43,8 @@ const update = async (req, res) => {
         if (!ok) return res.status(404).json({ message: 'Schedule not found' });
         res.status(200).json({ message: 'Schedule updated' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -50,7 +54,8 @@ const getTrash = async (req, res) => {
         const list = await scheduleService.getTrashByUser(req.user.user_id);
         res.status(200).json({ message: 'Trash retrieved', total: list.length, data: list });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -61,7 +66,8 @@ const remove = async (req, res) => {
         if (!ok) return res.status(404).json({ message: 'Schedule not found' });
         res.status(200).json({ message: 'Schedule moved to trash' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -72,7 +78,8 @@ const restore = async (req, res) => {
         if (!ok) return res.status(404).json({ message: 'Schedule not found in trash' });
         res.status(200).json({ message: 'Schedule restored' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -83,7 +90,8 @@ const removePermanent = async (req, res) => {
         if (!ok) return res.status(404).json({ message: 'Schedule not found' });
         res.status(200).json({ message: 'Schedule permanently deleted' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -93,7 +101,8 @@ const createDraftHandler = async (req, res) => {
         const result = await scheduleService.createDraft(req.user.user_id);
         res.status(201).json({ message: 'Draft created', data: result });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -103,7 +112,8 @@ const draftHasDataHandler = async (req, res) => {
         const hasData = await scheduleService.draftHasData(req.user.user_id, req.params.id);
         res.status(200).json({ hasData });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -114,7 +124,8 @@ const finalizeHandler = async (req, res) => {
         if (!ok) return res.status(404).json({ message: 'Schedule not found' });
         res.status(200).json({ message: 'Schedule finalized' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 

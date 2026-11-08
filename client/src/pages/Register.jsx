@@ -20,6 +20,12 @@ function Register({ onNavigate }) {
         setError('');
         setOk('');
 
+        // Validación del formato del correo (mismo criterio que el backend)
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRe.test(email.trim())) {
+            setError('El formato del correo electrónico no es válido (ej: nombre@dominio.com)');
+            return;
+        }
         if (password !== confirm) {
             setError(t('error_password_mismatch'));
             return;
@@ -46,7 +52,7 @@ function Register({ onNavigate }) {
             <Navbar view="register" onNavigate={onNavigate} />
 
             <main className="register-container">
-                <form id="register-form" onSubmit={handleSubmit}>
+                <form id="register-form" onSubmit={handleSubmit} noValidate>
                     <h2>{t('register_title')}</h2>
 
                     <div className="input-group">

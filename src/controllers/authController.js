@@ -1,5 +1,6 @@
 // Auth Controller - Maneja la solicitud del Http para authentication
 const authService = require('../services/authService');
+const { isValidEmail, isValidPassword, PASSWORD_MIN } = require('../utils/validators');
 
 // POST /api/auth/register
 const register = async (req, res) => {
@@ -9,6 +10,14 @@ const register = async (req, res) => {
         if (!nombre || !email || !password) {
             return res.status(400).json({ message: 'nombre, email and password are required' });
         }
+        // BUG-003: validar formato del correo en el backend
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ message: 'El formato del correo electrónico no es válido' });
+        }
+        // BUG-004: validar longitud mínima de la contraseña en el backend
+        if (!isValidPassword(password)) {
+            return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres` });
+        }
 
         const newUser = await authService.register(nombre, email, password);
         res.status(201).json({ message: 'User registered successfully', data: newUser });
@@ -17,7 +26,8 @@ const register = async (req, res) => {
         if (error.message === 'Email already registered') {
             return res.status(409).json({ message: error.message });
         }
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -37,7 +47,8 @@ const login = async (req, res) => {
         if (error.message === 'Invalid credentials') {
             return res.status(401).json({ message: error.message });
         }
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -47,7 +58,8 @@ const getMe = async (req, res) => {
         const profile = await authService.getProfile(req.user.user_id);
         res.status(200).json({ data: profile });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -58,13 +70,18 @@ const updateMe = async (req, res) => {
         if (!nombre || !email) {
             return res.status(400).json({ message: 'nombre and email are required' });
         }
+        // BUG-003: validar formato del correo también al actualizar el perfil
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ message: 'El formato del correo electrónico no es válido' });
+        }
         const updated = await authService.updateProfile(req.user.user_id, nombre, email);
         res.status(200).json({ message: 'Profile updated', data: updated });
     } catch (error) {
         if (error.message === 'Email already registered') {
             return res.status(409).json({ message: error.message });
         }
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -75,13 +92,18 @@ const updatePassword = async (req, res) => {
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ message: 'currentPassword and newPassword are required' });
         }
+        // BUG-004: validar longitud mínima de la nueva contraseña en el backend
+        if (!isValidPassword(newPassword)) {
+            return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres` });
+        }
         await authService.changePassword(req.user.user_id, currentPassword, newPassword);
         res.status(200).json({ message: 'Password updated' });
     } catch (error) {
         if (error.message === 'Current password is incorrect') {
             return res.status(400).json({ message: error.message });
         }
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 
@@ -91,7 +113,8 @@ const deleteMe = async (req, res) => {
         await authService.deleteAccount(req.user.user_id);
         res.status(200).json({ message: 'Account deleted' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
 

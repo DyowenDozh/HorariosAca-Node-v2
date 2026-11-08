@@ -190,4 +190,13 @@ export const savePrefDetails = async (scheduleId, items) => {
     return data;
 };
 
+export const generateSchedule = async (scheduleId) => {
+    const { data } = await api.post(`/generate/${scheduleId}`);
+    return data;
+};
+export const getGeneratedSchedule = async (scheduleId) => {
+    const { data } = await api.get(`/generate/${scheduleId}`);
+    return data;
+};
+
 export default api;
