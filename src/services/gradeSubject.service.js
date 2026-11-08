@@ -6,10 +6,19 @@ const getByGrade = async (gradeId) => {
     const [rows] = await pool.query(
         `SELECT gs.grade_subject_id, gs.subject_id, gs.weekly_hours, gs.teacher_id,
                 s.subject_name, s.abbreviation, s.color_id,
-                t.teacher_name
+                COALESCE(
+                    t_direct.teacher_name,
+                    (SELECT t2.teacher_name
+                       FROM teacher_grade_rules tgr
+                       JOIN teachers t2 ON t2.teacher_id = tgr.teacher_id
+                      WHERE tgr.grade_id = gs.grade_id
+                        AND tgr.subject_id = gs.subject_id
+                        AND tgr.rule = 'DEBE'
+                      LIMIT 1)
+                ) AS teacher_name
          FROM grade_subjects gs
          JOIN subjects s ON s.subject_id = gs.subject_id
-         LEFT JOIN teachers t ON t.teacher_id = gs.teacher_id
+         LEFT JOIN teachers t_direct ON t_direct.teacher_id = gs.teacher_id
          WHERE gs.grade_id = ?
          ORDER BY gs.grade_subject_id`,
         [gradeId]

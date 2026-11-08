@@ -2,7 +2,7 @@
 // Dos niveles: (1) lista de grados; (2) malla de un grado con tabla de asignaturas.
 // Al "Agregar asignatura" se abre un dual-list para elegir varias materias.
 // El total de horas del grado se recalcula desde la estructura de la Fase 1.
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     getGrades, createGrade, updateGrade, deleteGrade,
     getSubjects, getGradeCurriculum, saveGradeCurriculum
@@ -60,10 +60,13 @@ function Grades({ scheduleId, dayMode, days, workDays, newGradeSignal }) {
 
     const openCreate = () => { setName(''); setFormOpen(true); };
 
-    // Señal desde el asistente ("Añadir otro grado") sale de la malla y
-    // abre directamente el formulario de nuevo grado.
+    // Señal desde el asistente ("Añadir otro grado"): salir de la malla y
+    // abrir el formulario de nuevo grado. Solo reacciona a CAMBIOS reales de la
+    // señal, no al valor que ya traía al montar (evita abrirlo al entrar al paso 3).
+    const lastGradeSignal = useRef(newGradeSignal);
     useEffect(() => {
-        if (!newGradeSignal) return;
+        if (newGradeSignal === lastGradeSignal.current) return;
+        lastGradeSignal.current = newGradeSignal;
         setCurriculumGrade(null);
         openCreate();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,6 +232,7 @@ function GradeCurriculum({ grade, scheduleId, totalHours, grades, onBack, t }) {
                 subject_name: r.subject_name,
                 color_id: r.color_id,
                 weekly_hours: r.weekly_hours,
+                teacher_name: r.teacher_name || null,
             }));
             setRows(cur);
         } catch (err) {
@@ -381,7 +385,9 @@ function GradeCurriculum({ grade, scheduleId, totalHours, grades, onBack, t }) {
                                                     {hoursOptions(r).map(n => <option key={n} value={n}>{n}</option>)}
                                                 </select>
                                             </td>
-                                            <td><span className="opaque-text">{t('unassigned') !== 'unassigned' ? t('unassigned') : 'No asignado'}</span></td>
+                                            <td>{r.teacher_name
+                                                ? r.teacher_name
+                                                : <span className="opaque-text">{t('unassigned') !== 'unassigned' ? t('unassigned') : 'No asignado'}</span>}</td>
                                             <td className="table-actions">
                                                 <button title={t('remove')} onClick={() => removeRow(r.subject_id)}>🗑️</button>
                                             </td>
