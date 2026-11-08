@@ -10,6 +10,7 @@ import Subjects from './Subjects';
 import Grades from './Grades';
 import Teachers from './Teachers';
 import { Phase1DayConfig, defaultDay } from './Phase1DayConfig';
+import { setExitToList, clearExitToList } from '../utils/navGuard';
 import {
     getScheduleById, updateSchedule, createDraft, draftHasData,
     finalizeSchedule, deleteSchedulePermanent, getPrefDetails, savePrefDetails,
@@ -122,6 +123,14 @@ function CreateSchedule({ onBack, editingId }) {
 
     const isDirty = () => savedSnapshot.current !== currentSnapshot();
 
+    // Registra la salida del editor para que el botón "Gestión" del sidebar
+    // haga lo mismo que "Volver a la lista".
+    const goBackRef = useRef(null);
+    useEffect(() => {
+        setExitToList(() => { if (goBackRef.current) goBackRef.current(); });
+        return () => clearExitToList();
+    }, []);
+
     const guardedGo = (action) => {
         if (isDirty()) setPendingAction(() => action);
         else action();
@@ -135,8 +144,9 @@ function CreateSchedule({ onBack, editingId }) {
         if (isDirty()) { setPendingAction(() => reallyExit); return; }
         await reallyExit();
     };
+    goBackRef.current = goBackToList; // mantiene la salida del sidebar actualizada
 
-    // Sale del wizard; si es un borrador nuevo, decide descartar o preguntar
+    // Sale del wizard, si es un borrador nuevo, decide descartar o preguntar
     const reallyExit = async () => {
         if (!isEditing && activeIdRef.current) {
             try {

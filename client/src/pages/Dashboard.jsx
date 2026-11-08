@@ -11,10 +11,21 @@ import PlansInternal from './PlansInternal';
 import TutorialsInternal from './TutorialsInternal';
 import SupportWidget from '../components/SupportWidget';
 import { Footer } from '../components/PublicChrome';
+import { hasExitToList, runExitToList } from '../utils/navGuard';
 
 function Dashboard({ onLogout }) {
     const [view, setView] = useState('schedule');
     const [collapsed, setCollapsed] = useState(false);
+
+    // Navegación sidebar Si se está editando un horario y se pulsa
+    // "Gestión" sale a la lista de horariios
+    const navigate = (target) => {
+        if (target === 'schedule' && hasExitToList()) {
+            runExitToList();
+            return;
+        }
+        setView(target);
+    };
 
     const handleLogout = () => {
         const lang = localStorage.getItem('preferred_lang');
@@ -41,7 +52,7 @@ function Dashboard({ onLogout }) {
         <>
             <Sidebar
                 active={view}
-                onNavigate={setView}
+                onNavigate={navigate}
                 onLogout={handleLogout}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(c => !c)}

@@ -34,6 +34,9 @@ function Schedule() {
     };
 
     useEffect(() => { load(); }, []);
+    
+    // Al pulsar "Gestión" en el sidebar: cierra el editor y vuelve a la lista.
+    useEffect(() => { load(); }, []);
 
     const openCreate = () => { setEditingId(null); setShowWizard(true); };
     const openEdit = (s) => { setEditingId(s.schedule_id); setShowWizard(true); };
