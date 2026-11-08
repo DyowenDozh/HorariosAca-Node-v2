@@ -3,7 +3,7 @@
 // disponibilidad (D/ND/LD/LS), límite diario por día, y sub-pantalla de reglas por grado.
 // La disponibilidad y reglas se GUARDAN pero el motor de generación (que las usa)
 // queda pendiente para una versión posterior.
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     getTeachers, createTeacher, updateTeacher, deleteTeacher,
     getSubjects, getGrades, getTeacherConfig, saveTeacherConfig, getTeacherContext
@@ -34,7 +34,7 @@ function totalWeekHours(dayMode, days, workDays) {
         }, 0);
 }
 
-function Teachers({ scheduleId, dayMode, days, workDays }) {
+function Teachers({ scheduleId, dayMode, days, workDays, newTeacherSignal }) {
     const { t } = useLanguage();
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -63,6 +63,17 @@ function Teachers({ scheduleId, dayMode, days, workDays }) {
     useEffect(() => { load(); }, []);
 
     const openCreate = () => { setName(''); setHours(''); setFormOpen(true); };
+
+    // Señal desde el asistente ("Añadir otro profesor"): salir del editor y abrir
+    // el formulario de nuevo profesor. Solo reacciona a CAMBIOS reales de la señal.
+    const lastTeacherSignal = useRef(newTeacherSignal);
+    useEffect(() => {
+        if (newTeacherSignal === lastTeacherSignal.current) return;
+        lastTeacherSignal.current = newTeacherSignal;
+        setCardTeacher(null);
+        openCreate();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [newTeacherSignal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

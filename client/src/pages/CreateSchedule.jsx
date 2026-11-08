@@ -57,6 +57,10 @@ function CreateSchedule({ onBack, editingId }) {
     const [gradeContinuePrompt, setGradeContinuePrompt] = useState(false);
     // para que módulo de Grados abra el formulario de "Nuevo grado"
     const [newGradeSignal, setNewGradeSignal] = useState(0);
+    // Modal al pulsar "Siguiente" en la fase de Profesores (fase 4)
+    const [teacherContinuePrompt, setTeacherContinuePrompt] = useState(false);
+    // Señal para que el módulo de Profesores abra el formulario de "Nuevo profesor"
+    const [newTeacherSignal, setNewTeacherSignal] = useState(0);
 
     const currentSnapshot = () => JSON.stringify({ name, general, dayMode, workDays, days, prefs });
 
@@ -143,8 +147,11 @@ function CreateSchedule({ onBack, editingId }) {
     const next = () => {
         // En la fase de Grados, preguntar si añadir otro grado o pasar a Profesores
         if (phase === 3) { setGradeContinuePrompt(true); return; }
+        // En la fase de Profesores, preguntar si añadir otro profesor o pasar a Preferencias
+        if (phase === 4) { setTeacherContinuePrompt(true); return; }
         guardedGo(() => setPhase(p => Math.min(TOTAL_PHASES, p + 1)));
     };
+
     const prev = () => guardedGo(() => setPhase(p => Math.max(1, p - 1)));
 
     // Volver a la lista: si es un borrador (nuevo) sin nombre/datos, decidir si descartar
@@ -315,7 +322,7 @@ function CreateSchedule({ onBack, editingId }) {
                     <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase3_hint')}</p><Grades scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} newGradeSignal={newGradeSignal} /></div>
                 )}
                 {phase === 4 && (
-                    <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase4_hint')}</p><Teachers scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} /></div>
+                    <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase4_hint')}</p><Teachers scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} newTeacherSignal={newTeacherSignal} /></div>
                 )}
                 {phase === 5 && <Phase5 prefs={prefs} setPrefs={setPrefs} scheduleId={activeId} t={t} />}
                 {phase === 6 && <Phase6 scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} t={t} />}
@@ -345,6 +352,17 @@ function CreateSchedule({ onBack, editingId }) {
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
                         <button className="btn-secondary" onClick={() => { setGradeContinuePrompt(false); setNewGradeSignal(s => s + 1); }}>+ Añadir otro grado</button>
                         <button className="submit-btn" onClick={() => { setGradeContinuePrompt(false); setPhase(4); }}>Continuar a Profesores →</button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Modal: ¿añadir otro profesor o continuar a Preferencias? */}
+            {teacherContinuePrompt && (
+                <Modal title="Profesores" onClose={() => setTeacherContinuePrompt(false)}>
+                    <p className="confirm-text">¿Deseas añadir otro profesor o continuar con las preferencias?</p>
+                    <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
+                        <button className="btn-secondary" onClick={() => { setTeacherContinuePrompt(false); setNewTeacherSignal(s => s + 1); }}>+ Añadir otro profesor</button>
+                        <button className="submit-btn" onClick={() => { setTeacherContinuePrompt(false); setPhase(5); }}>Continuar a Preferencias →</button>
                     </div>
                 </Modal>
             )}
