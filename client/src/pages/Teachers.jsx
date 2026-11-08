@@ -598,6 +598,12 @@ function GradeRules({ teacher, mySubjects, allGrades, rules, setRules, taken, ma
     }, 0);
     const overLimit = obligatoryHours > weekHours;
 
+    // Solo los grados donde la materia activa está en la malla curricular (Fase 3).
+    // Si la materia no se enseña en ese grado, no debe aparecer aquí.
+    const gradesForSubject = allGrades.filter(g =>
+        (mallas || []).some(m => m.subject_id === Number(activeSubject) && m.grade_id === Number(g.grade_id))
+    );
+
     return (
         <>
             <div className="dashboard-header">
@@ -622,8 +628,12 @@ function GradeRules({ teacher, mySubjects, allGrades, rules, setRules, taken, ma
                     ))}
                 </div>
 
-                {allGrades.length === 0 ? (
-                    <p className="wizard-hint">{t('no_grades_yet') !== 'no_grades_yet' ? t('no_grades_yet') : 'No hay grados creados en la Fase 3.'}</p>
+                {gradesForSubject.length === 0 ? (
+                    <p className="wizard-hint">
+                        {allGrades.length === 0
+                            ? (t('no_grades_yet') !== 'no_grades_yet' ? t('no_grades_yet') : 'No hay grados creados en la Fase 3.')
+                            : 'Esta materia no está en la malla de ningún grado. Agrégala a la malla del grado (Fase 3) para poder asignarla.'}
+                    </p>
                 ) : (
                     <table className="data-table">
                         <thead>
@@ -633,7 +643,7 @@ function GradeRules({ teacher, mySubjects, allGrades, rules, setRules, taken, ma
                             </tr>
                         </thead>
                         <tbody>
-                            {allGrades.map(g => {
+                            {gradesForSubject.map(g => {
                                 const who = takenBy(activeSubject, g.grade_id);
                                 const rule = getRule(activeSubject, g.grade_id);
                                 const hrs = mallaHours(activeSubject, g.grade_id);
