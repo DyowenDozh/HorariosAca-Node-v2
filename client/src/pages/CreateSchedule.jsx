@@ -570,6 +570,7 @@ function Phase5Detailed({ scheduleId, t }) {
                                                 <option value="NONE">{t('group_none') !== 'group_none' ? t('group_none') : 'No especificado'}</option>
                                                 <option value="GROUP2">{t('group_two') !== 'group_two' ? t('group_two') : 'Agrupar al menos 2 horas seguidas un día'}</option>
                                                 <option value="MAX1">{t('group_max1') !== 'group_max1' ? t('group_max1') : 'No permitir más de 1 hora de esta clase al día'}</option>
+                                                <option value="NO_CONSEC">{t('group_no_consec') !== 'group_no_consec' ? t('group_no_consec') : 'Separar en días no consecutivos (ej. lun y mié)'}</option>
                                             </select>
                                         </td>
                                     </tr>
@@ -596,6 +597,7 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     const [error, setError] = useState('');
     const [rows, setRows] = useState(null);     // clases generadas
     const [stats, setStats] = useState(null);
+    const [warning, setWarning] = useState(null); // aviso si el horario se relajó
     const [loaded, setLoaded] = useState(false); // ¿ya intentamos cargar uno existente?
 
     const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
@@ -619,12 +621,13 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     }, []);
 
     const handleGenerate = async () => {
-        setLoading(true); setError('');
+        setLoading(true); setError(''); setWarning(null);
         try {
             const res = await generateSchedule(scheduleId);
             if (!res.ok) { setError(res.message); setRows(null); }
             else {
                 setStats(res.stats);
+                setWarning(res.warning || null);
                 const got = await getGeneratedSchedule(scheduleId);
                 setRows(got.data || []);
             }
@@ -657,9 +660,13 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
             )}
 
             {stats && !error && (
-                <p style={{ textAlign: 'center', color: 'var(--success)', fontSize: '0.9rem' }}>
+                <p style={{ textAlign: 'center', color: warning ? 'var(--text-soft)' : 'var(--success)', fontSize: '0.9rem' }}>
                     {t('gen_success')} · {stats.units} {t('gen_classes_placed')}
                 </p>
+            )}{warning && !error && (
+                <div style={{ marginTop: '10px', padding: '12px 14px', borderRadius: '8px', background: '#FFF4E5', border: '1px solid #F0C36D', color: '#8A5A00', fontSize: '0.88rem' }}>
+                    ⚠️ {warning}
+                </div>
             )}
 
             {/* Cuadrículas por grado */}

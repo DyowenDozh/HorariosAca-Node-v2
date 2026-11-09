@@ -463,6 +463,19 @@ function TeacherCard({ teacher, scheduleId, dayMode, days, workDays, onBack, t }
                                         </tr>
                                     </tbody>
                                 </table>
+                                {/* Aplicar el mismo límite diario a toda la semana de un clic */}
+                                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-soft)' }}>
+                                    <span>{t('apply_week_limit') !== 'apply_week_limit' ? t('apply_week_limit') : 'Aplicar límite diario a toda la semana:'}</span>
+                                    <select
+                                        value=""
+                                        onChange={(e) => { if (e.target.value === '') return; const v = Number(e.target.value); setDayLimits(prev => { const next = { ...prev }; activeDays.forEach(dk => { next[dk] = v; }); return next; }); }}
+                                        style={{ width: '90px' }}
+                                    >
+                                        <option value="">—</option>
+                                        <option value={0}>{t('no_limit') !== 'no_limit' ? t('no_limit') : 'Sin límite'}</option>
+                                        {Array.from({ length: Math.max(0, ...activeDays.map(dk => hpd[dk])) }).map((_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         )}
 
