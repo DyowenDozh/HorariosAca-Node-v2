@@ -129,4 +129,16 @@ const finalizeHandler = async (req, res) => {
     }
 };
 
-module.exports = { getAll, getTrash, getOne, create, update, remove, restore, removePermanent, createDraftHandler, draftHasDataHandler, finalizeHandler };
+// POST /api/schedules/:id/duplicate  → duplica el horario completo a uno nuevo
+const duplicateHandler = async (req, res) => {
+    try {
+        const result = await scheduleService.duplicateSchedule(req.user.user_id, req.params.id, req.body.name);
+        if (!result) return res.status(404).json({ message: 'Schedule not found' });
+        res.status(201).json({ message: 'Schedule duplicated', data: result });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+module.exports = { getAll, getTrash, getOne, create, update, remove, restore, removePermanent, createDraftHandler, draftHasDataHandler, finalizeHandler, duplicateHandler };

@@ -29,6 +29,7 @@ La autenticación se realiza con JSON Web Tokens (JWT) y la arquitectura sigue e
 - **Autenticación JWT** con registro, inicio de sesión y gestión de cuenta.
 - **Gestión de horarios** con persistencia real en MySQL: crear, editar, listar y eliminar.
 - **Borradores y papelera**: los horarios sin terminar se guardan como borrador; la eliminación es un borrado suave (soft delete) con opción de restaurar o eliminar definitivamente.
+- **Duplicar horario**: clona un horario completo (profesores, materias, grados, malla, reglas, disponibilidad, límites, preferencias y el horario generado) a uno nuevo e independiente. Ideal para el año siguiente: se reutiliza casi todo y editar la copia no afecta al original, porque cada profesor/materia/grado del duplicado es una fila nueva con su propio ID.
 - **Aislamiento por horario**: cada horario mantiene sus propias materias, grados y profesores mediante llaves foráneas, sin compartir datos entre horarios.
 - **Asistente de creación en 6 fases**:
   1. **Estructura** — días laborales, horas por día, duración de clase, hora de inicio y descansos (con diales y arrastrar-y-soltar).
@@ -198,7 +199,7 @@ Todos los módulos, salvo autenticación, requieren un token JWT válido en la c
 | Módulo | Ruta base | Descripción |
 |--------|-----------|-------------|
 | Autenticación | `/api/auth` | Registro e inicio de sesión (emite JWT). |
-| Horarios | `/api/schedules` | CRUD de horarios, borradores, papelera y finalización. |
+| Horarios | `/api/schedules` | CRUD de horarios, borradores, papelera, finalización y duplicación. |
 | Materias | `/api/subjects` | CRUD de asignaturas, aisladas por horario. |
 | Grados | `/api/grades` | CRUD de grados, aislados por horario. |
 | Malla curricular | `/api/grade-subjects` | Materias y horas semanales por grado. |
@@ -235,7 +236,7 @@ Todos los módulos, salvo autenticación, requieren un token JWT válido en la c
 Proyecto formativo del programa **Análisis y Desarrollo de Software (SENA)**. Se encuentran integrados y funcionales con persistencia real en base de datos:
 
 - Autenticación (registro, inicio de sesión, gestión de cuenta) con JWT y bcrypt.
-- Gestión de horarios (crear, editar, listar, borradores y papelera).
+- Gestión de horarios (crear, editar, listar, duplicar, borradores y papelera).
 - Asistente de configuración en 6 fases (estructura, materias, grados, profesores, preferencias y generación).
 - Generación automática del horario con repaso de calidad y relajación por niveles.
 - Editor manual del horario sobre grilla.

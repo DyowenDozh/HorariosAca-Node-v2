@@ -12,6 +12,7 @@ router.get('/:id', controller.getOne);
 router.get('/:id/has-data', controller.draftHasDataHandler);
 router.post('/', controller.create);
 router.put('/:id/finalize', controller.finalizeHandler);
+router.post('/:id/duplicate', controller.duplicateHandler);
 router.put('/:id/restore', controller.restore);
 router.put('/:id', controller.update);
 router.delete('/:id/permanent', controller.removePermanent);

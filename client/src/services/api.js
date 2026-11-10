@@ -130,6 +130,11 @@ export const deleteSchedule = async (id) => {
     return data;
 };
 
+export const duplicateSchedule = async (id, name) => {
+    const { data } = await api.post(`/schedules/${id}/duplicate`, { name });
+    return data;
+};
+
 export const getScheduleTrash = async () => {
     const { data } = await api.get('/schedules/trash');
     return data;

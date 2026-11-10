@@ -5,7 +5,7 @@
 // PDF/Excel (RF-09) quedan pendientes para una versión posterior.
 import { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
-import { getSchedules, deleteSchedule } from '../services/api';
+import { getSchedules, deleteSchedule, duplicateSchedule } from '../services/api';
 import { useLanguage } from '../i18n/LanguageContext';
 import CreateSchedule from './CreateSchedule';
 
@@ -19,6 +19,7 @@ function Schedule() {
     const [editingId, setEditingId] = useState(null);   // id del horario a editar
     const [wizardPhase, setWizardPhase] = useState(1);  // fase inicial del asistente
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [duplicatingId, setDuplicatingId] = useState(null); // id en proceso de duplicado
 
     const load = async () => {
         setLoading(true);
@@ -39,6 +40,18 @@ function Schedule() {
     const openEdit = (s) => { setEditingId(s.schedule_id); setWizardPhase(1); setShowWizard(true); };
     // Exportar: abre el horario directamente en el paso de Generación (Step 6), donde se exporta.
     const openExport = (s) => { setEditingId(s.schedule_id); setWizardPhase(6); setShowWizard(true); };
+
+    const handleDuplicate = async (s) => {
+        setDuplicatingId(s.schedule_id); setError('');
+        try {
+            await duplicateSchedule(s.schedule_id, `${s.name || t('schedule_untitled')} (${t('copy_word')})`);
+            await load();
+        } catch (err) {
+            setError(err.response?.data?.message || t('dup_error'));
+        } finally {
+            setDuplicatingId(null);
+        }
+    };
 
     const handleDelete = async () => {
         try {
@@ -104,6 +117,7 @@ function Schedule() {
                                     <td className="table-actions">
                                         <button title={t('edit')} onClick={() => openEdit(s)}>✏️</button>
                                         <button title={t('action_export')} onClick={() => openExport(s)}>📥</button>
+                                        <button title={t('action_duplicate')} onClick={() => handleDuplicate(s)} disabled={duplicatingId === s.schedule_id}>{duplicatingId === s.schedule_id ? '⏳' : '📋'}</button>
                                         <button title={t('remove')} onClick={() => setDeleteTarget(s)}>🗑️</button>
                                     </td>
                                 </tr>
