@@ -38,9 +38,10 @@ function makeRng(seed) {
 }
 
 function generateSchedule(input) {
-    const { days, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits } = input;
+    const { days, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, seed } = input;
 
     const numDays = days.length;
+    const Hd = days.map(d => d.hours); // franjas de cada día
     if (numDays === 0) return { ok: false, reason: 'El horario no tiene días laborales configurados.' };
     const hoursOfDay = days.map(d => d.hours);
     const S = hoursOfDay.reduce((a, b) => a + b, 0);
@@ -116,30 +117,43 @@ function generateSchedule(input) {
 
     const t0 = Date.now();
 
+    const teacherName = {}; for (const t of teachers) teacherName[t.teacher_id] = t.teacher_name || `profesor ${t.teacher_id}`;
+
     if (overloaded.length > 0) {
         const be = bestEffort(vars, { numDays, hoursOfDay, gradeIds, teachers, days, ndHours });
-        const quien = overloaded.map(o => `profesor ${o.teacher_id} (${o.hours}h obligatorias, cupo ${o.cap}h)`).join(', ');
+        const quien = overloaded.map(o => `${teacherName[o.teacher_id]} (${o.hours}h obligatorias, cupo ${o.cap}h)`).join(', ');
         return { ok: true, placements: be.placements, relaxed: true, unplaced: be.unplaced,
             warning: `El horario es imposible de cuadrar tal cual: ${quien} supera su cupo semanal (por horas, límites o disponibilidad). Se generó un horario parcial dejando huecos; revisa esos profesores.`,
             stats: { units: be.placements.length, unplaced: be.unplaced.length, ms: Date.now() - t0 } };
     }
 
+    // Contexto para el repaso de calidad (mejora comodidad sin romper restricciones).
+    const polishCtx = { days, prefMap, teacherCap, ndHours };
+    const doPolish = (pl) => input.polish === false ? pl : polish(pl, polishCtx, { seed });
+
     // NIVEL 1
-    let r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: false, budget: BUDGET_TIER1 });
-    if (r.ok) return { ok: true, placements: r.placements, relaxed: false, stats: { ...r.stats, ms: Date.now() - t0 } };
+    let r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: false, budget: BUDGET_TIER1, seed });
+    if (r.ok) return { ok: true, placements: doPolish(r.placements), relaxed: false, stats: { ...r.stats, ms: Date.now() - t0 } };
 
     // NIVEL 2 (ignora preferencias detalladas)
     const hadDetailed = vars.some(v => v.grouping === 'GROUP2' || v.grouping === 'NO_CONSEC');
-    r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: true, budget: BUDGET_TIER2 });
-    if (r.ok) return { ok: true, placements: r.placements, relaxed: true,
+    r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: true, budget: BUDGET_TIER2, seed });
+    if (r.ok) return { ok: true, placements: doPolish(r.placements), relaxed: true,
         warning: hadDetailed ? 'No se pudieron respetar algunas preferencias detalladas (unir materias o separarlas en días no consecutivos); se generó un horario válido sin esas preferencias.' : 'Se generó un horario relajando algunas preferencias.',
         stats: { ...r.stats, ms: Date.now() - t0 } };
 
     // NIVEL 3 (mejor esfuerzo)
     const be = bestEffort(vars, { numDays, hoursOfDay, gradeIds, teachers, days, ndHours });
-    if (be.placements.length > 0) return { ok: true, placements: be.placements, relaxed: true, unplaced: be.unplaced,
-        warning: be.unplaced.length > 0 ? `No fue posible cuadrar todo el horario; se ubicaron ${be.placements.length} clases y quedaron ${be.unplaced.length} sin ubicar (huecos). Revisa la carga horaria, los límites y la disponibilidad de los profesores.` : 'Se generó el horario relajando restricciones.',
-        stats: { units: be.placements.length, unplaced: be.unplaced.length, ms: Date.now() - t0 } };
+    if (be.placements.length > 0) {
+        // Profesores con clases sin ubicar (para que el aviso diga dónde revisar).
+        const tset = new Set();
+        for (const u of be.unplaced) if (u.cands && u.cands.length === 1) tset.add(u.cands[0]);
+        const nombres = [...tset].map(id => teacherName[id]).slice(0, 4);
+        const quienes = nombres.length ? ` Afecta sobre todo a: ${nombres.join(', ')}${tset.size > nombres.length ? ', …' : ''}.` : '';
+        return { ok: true, placements: be.placements, relaxed: true, unplaced: be.unplaced,
+            warning: be.unplaced.length > 0 ? `No fue posible cuadrar todo el horario con los límites/disponibilidad indicados; se ubicaron ${be.placements.length} clases y quedaron ${be.unplaced.length} sin ubicar (huecos).${quienes} Revisa la carga horaria, los límites diarios y la disponibilidad de esos profesores.` : 'Se generó el horario relajando restricciones.',
+            stats: { units: be.placements.length, unplaced: be.unplaced.length, ms: Date.now() - t0 } };
+    }
 
     return { ok: false, reason: 'No se pudo generar ningún horario. Revisa la configuración de grados, materias y profesores.' };
 }
@@ -347,6 +361,9 @@ function twoPhase(vars, ctx) {
         return { placements, nodes: rA.nodes };
     }
 
+    // Primera pasada SIEMPRE determinista: en horarios muy ajustados (semana 100% llena)
+    // el orden inteligente (MRV) resuelve en milisegundos; aleatorizarlo lo vuelve casi
+    // irresoluble. La VARIEDAD al regenerar se consigue después, en el repaso (polish).
     let res = attempt(null); let totalNodes = res ? res.nodes : 0; let attempts = 1;
     while (!res && Date.now() - start < budget) { attempts++; res = attempt(makeRng(0x9E3779B1 ^ (attempts * 2654435761))); if (res) totalNodes += res.nodes; }
     if (!res) return { ok: false };
@@ -379,9 +396,142 @@ function bestEffort(vars, ctx) {
                 if (!teacherBusy[tid][s]) { gradeBusy[l.grade_id][s] = 1; teacherBusy[tid][s] = 1; placements.push({ grade_id: l.grade_id, subject_id: l.subject_id, teacher_id: tid, day_key: slots[s].day_key, hour_index: slots[s].hour_index }); placed = true; break; }
             }
         }
-        if (!placed) unplaced.push({ grade_id: l.grade_id, subject_id: l.subject_id });
+        if (!placed) unplaced.push({ grade_id: l.grade_id, subject_id: l.subject_id, cands: l.cands });
     }
     return { placements, unplaced };
 }
 
-module.exports = { generateSchedule };
+// ============================================================================
+// Repaso de calidad: mejora la comodidad del horario sin romper restricciones.
+// Prioridad: 1) menos días libres  2) menos huecos internos  3) carga balanceada.
+// Usa búsqueda local con INTERCAMBIOS dentro de un mismo grado (siempre dejan
+// válido al grado), respetando profesor/ND/límite diario/máx 1 por día.
+// No mueve materias con preferencia GROUP2 o NO_CONSEC (quedan fijas).
+// ============================================================================
+function polish(placements, ctx, opts) {
+    if (!placements || placements.length === 0) return placements;
+    opts = opts || {};
+    const budgetMs = opts.budgetMs || 2500;
+    const seed = opts.seed; // si viene semilla, se exploran plateaus al azar (variedad al regenerar)
+    const { days, prefMap, teacherCap, ndHours } = ctx;
+    const numDays = days.length;
+    const Hd = days.map(d => d.hours); // franjas de cada día
+    const dIdx = {}; days.forEach((d, i) => { dIdx[d.day_key] = i; });
+
+    const P = placements.map(p => ({ ...p, d: dIdx[p.day_key] }));
+    const teacherIds = [...new Set(P.map(p => p.teacher_id).filter(x => x != null))];
+
+    const tCell = new Map();
+    P.forEach((p, i) => { if (p.teacher_id != null) tCell.set(`${p.teacher_id}|${p.d}|${p.hour_index}`, i); });
+    const locked = P.map(p => { const g = prefMap[`${p.grade_id}-${p.subject_id}`]; return g === 'GROUP2' || g === 'NO_CONSEC'; });
+    const gsDays = new Map();
+    P.forEach(p => { const k = `${p.grade_id}|${p.subject_id}`; if (!gsDays.has(k)) gsDays.set(k, new Set()); gsDays.get(k).add(p.d); });
+
+    function loads() { const m = {}; for (const t of teacherIds) m[t] = new Int16Array(numDays); for (const p of P) if (p.teacher_id != null) m[p.teacher_id][p.d]++; return m; }
+    function hoursByDay() { const m = {}; for (const t of teacherIds) m[t] = Array.from({ length: numDays }, () => []); for (const p of P) if (p.teacher_id != null) m[p.teacher_id][p.d].push(p.hour_index); return m; }
+    function metrics() {
+        const load = loads(); const hbd = hoursByDay();
+        let freeDays = 0, gaps = 0, consec = 0, imb = 0;
+        for (const t of teacherIds) {
+            const totals = load[t]; let total = 0, mx = 0, mn = 999;
+            for (let d = 0; d < numDays; d++) total += totals[d];
+            if (total === 0) continue;
+            for (let d = 0; d < numDays; d++) {
+                if (totals[d] === 0) { freeDays++; continue; }
+                const hrs = hbd[t][d]; let first = 99, last = -1; for (const h of hrs) { if (h < first) first = h; if (h > last) last = h; }
+                const occ = new Set(hrs);
+                // Huecos internos (entre primera y última clase): peso suave, para bloques ordenados.
+                gaps += (last - first + 1) - hrs.length;
+                // Pares de horas libres SEGUIDAS en TODO el día (incluye inicio y fin).
+                let run = 0;
+                for (let h = 0; h < Hd[d]; h++) {
+                    if (occ.has(h)) { run = 0; }
+                    else { run++; if (run >= 2) consec++; }
+                }
+                if (totals[d] > mx) mx = totals[d]; if (totals[d] < mn) mn = totals[d];
+            }
+            imb += (mx - mn);
+        }
+        // Prioridad: días libres > evitar 2 libres seguidas (todo el día) > huecos internos > balance.
+        return { freeDays, gaps, consec, imb, obj: 1000 * freeDays + 60 * consec + 10 * gaps + 3 * imb };
+    }
+
+    function applySwap(i, j) {
+        const a = P[i], b = P[j];
+        tCell.delete(`${a.teacher_id}|${a.d}|${a.hour_index}`);
+        tCell.delete(`${b.teacher_id}|${b.d}|${b.hour_index}`);
+        if (a.d !== b.d && a.subject_id !== b.subject_id) {
+            gsDays.get(`${a.grade_id}|${a.subject_id}`).delete(a.d); gsDays.get(`${a.grade_id}|${a.subject_id}`).add(b.d);
+            gsDays.get(`${b.grade_id}|${b.subject_id}`).delete(b.d); gsDays.get(`${b.grade_id}|${b.subject_id}`).add(a.d);
+        }
+        const td = a.d, th = a.hour_index, tk = a.day_key;
+        a.d = b.d; a.hour_index = b.hour_index; a.day_key = b.day_key;
+        b.d = td; b.hour_index = th; b.day_key = tk;
+        tCell.set(`${a.teacher_id}|${a.d}|${a.hour_index}`, i);
+        tCell.set(`${b.teacher_id}|${b.d}|${b.hour_index}`, j);
+    }
+    function validSwap(i, j) {
+        const a = P[i], b = P[j];
+        if (a.grade_id !== b.grade_id || locked[i] || locked[j]) return false;
+        if (a.d === b.d && a.hour_index === b.hour_index) return false;
+        const ta = a.teacher_id, tb = b.teacher_id;
+        const oTa = tCell.get(`${ta}|${b.d}|${b.hour_index}`); if (oTa != null && oTa !== i && oTa !== j) return false;
+        const oTb = tCell.get(`${tb}|${a.d}|${a.hour_index}`); if (oTb != null && oTb !== i && oTb !== j) return false;
+        if (ndHours[ta] && ndHours[ta][b.d] && ndHours[ta][b.d].has(b.hour_index)) return false;
+        if (ndHours[tb] && ndHours[tb][a.d] && ndHours[tb][a.d].has(a.hour_index)) return false;
+        if (a.d !== b.d) {
+            const load = loads();
+            if (ta !== tb) {
+                if (load[ta][b.d] + 1 > teacherCap(ta, b.d)) return false;
+                if (load[tb][a.d] + 1 > teacherCap(tb, a.d)) return false;
+            }
+            if (a.subject_id !== b.subject_id) {
+                if (gsDays.get(`${a.grade_id}|${a.subject_id}`).has(b.d)) return false;
+                if (gsDays.get(`${b.grade_id}|${b.subject_id}`).has(a.d)) return false;
+            }
+        }
+        return true;
+    }
+    function tryObj(i, j) { if (!validSwap(i, j)) return null; applySwap(i, j); const o = metrics().obj; applySwap(i, j); return o; }
+
+    const byGrade = new Map(); P.forEach((p, i) => { if (!byGrade.has(p.grade_id)) byGrade.set(p.grade_id, []); byGrade.get(p.grade_id).push(i); });
+    const grades = [...byGrade.keys()];
+    let current = metrics().obj;
+    const start = Date.now();
+    let a = (seed != null ? (seed >>> 0) : 12345) || 1;
+    const rnd = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const snapshot = () => P.map(p => ({ grade_id: p.grade_id, subject_id: p.subject_id, teacher_id: p.teacher_id, day_key: p.day_key, hour_index: p.hour_index }));
+
+    // Mejor horario visto: nunca devolvemos algo peor que lo generado.
+    let best = snapshot(); let bestObj = current;
+    const variety = seed != null; // al regenerar exploramos acomodos alternativos de igual calidad
+
+    while (Date.now() - start < budgetMs) {
+        let improved = false, lateral = 0;
+        const order = variety ? shuffle(grades.slice(), rnd) : grades;
+        for (const g of order) {
+            const arr = byGrade.get(g); const n = arr.length; if (n < 2) continue;
+            const tries = Math.min(140, n * 4);
+            let bI = -1, bJ = -1, bObj2 = current;
+            const equals = []; // candidatos de igual objetivo (para moverse por el plateau)
+            for (let k = 0; k < tries; k++) {
+                const i = arr[Math.floor(rnd() * n)], j = arr[Math.floor(rnd() * n)];
+                if (i === j) continue;
+                const o = tryObj(i, j);
+                if (o == null) continue;
+                if (o < bObj2) { bObj2 = o; bI = i; bJ = j; }
+                else if (variety && o === current) equals.push([i, j]);
+            }
+            if (bI >= 0) { applySwap(bI, bJ); current = bObj2; improved = true; }
+            else if (variety && equals.length) { const [i, j] = equals[Math.floor(rnd() * equals.length)]; applySwap(i, j); lateral++; }
+            if (current < bestObj) { bestObj = current; best = snapshot(); }
+            if (Date.now() - start >= budgetMs) break;
+        }
+        // Sin variedad: en cuanto no mejora, hemos llegado al óptimo local → terminamos.
+        // Con variedad: seguimos mientras haya movimientos laterales que explorar.
+        if (!improved && !(variety && lateral > 0)) break;
+    }
+    return best;
+}
+
+module.exports = { generateSchedule, polish };

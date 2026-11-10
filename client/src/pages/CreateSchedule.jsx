@@ -16,6 +16,7 @@ import {
     finalizeSchedule, deleteSchedulePermanent, getPrefDetails, savePrefDetails,
     generateSchedule, getGeneratedSchedule
 } from '../services/api';
+import ScheduleViews from './ScheduleViews';
 
 const TOTAL_PHASES = 6;
 
@@ -599,6 +600,7 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     const [stats, setStats] = useState(null);
     const [warning, setWarning] = useState(null); // aviso si el horario se relajó
     const [loaded, setLoaded] = useState(false); // ¿ya intentamos cargar uno existente?
+    const [confirmRegen, setConfirmRegen] = useState(false); // aviso antes de regenerar
 
     const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
     const dayLabels = { lun: t('day_mon'), mar: t('day_tue'), mie: t('day_wed'), jue: t('day_thu'), vie: t('day_fri'), sab: t('day_sat'), dom: t('day_sun') };
@@ -638,20 +640,37 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
         }
     };
 
-    // Agrupar clases por grado
-    const grades = rows ? [...new Map(rows.map(r => [r.grade_id, r.grade_name])).entries()] : [];
-    const cellFor = (gradeId, dk, h) => rows.find(r => r.grade_id === gradeId && r.day_key === dk && r.hour_index === h);
-
     return (
         <div className="settings-card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', padding: rows ? '10px 0 20px' : '30px 0' }}>
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px' }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>{t('phase6_ready_title')}</h2>
                 <p style={{ color: 'var(--text-soft)', maxWidth: '520px', margin: '0 auto 18px' }}>{t('gen_intro')}</p>
-                <button className="submit-btn" onClick={handleGenerate} disabled={loading}>
+                <button className="submit-btn" onClick={() => rows ? setConfirmRegen(true) : handleGenerate()} disabled={loading}>
                     {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
                 </button>
+                {rows && !loading && (
+                    <p style={{ color: 'var(--text-soft)', fontSize: '0.8rem', marginTop: '8px' }}>
+                        Al regenerar se reemplaza el horario actual. Si quieres conservarlo, descárgalo antes (PDF o Excel).
+                    </p>
+                )}
             </div>
+
+            {/* Aviso simple antes de regenerar */}
+            {confirmRegen && (
+                <Modal title="Regenerar horario" onClose={() => setConfirmRegen(false)}>
+                    <p style={{ marginBottom: '6px' }}>
+                        Esto reemplazará el horario actual por uno nuevo. El horario que ves ahora se perderá.
+                    </p>
+                    <p style={{ color: 'var(--text-soft)', fontSize: '0.88rem' }}>
+                        Si quieres conservarlo, descárgalo primero (PDF o Excel) y luego regenera.
+                    </p>
+                    <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
+                        <button className="btn-secondary" onClick={() => setConfirmRegen(false)}>Cancelar</button>
+                        <button className="submit-btn" onClick={() => { setConfirmRegen(false); handleGenerate(); }}>Regenerar de todas formas</button>
+                    </div>
+                </Modal>
+            )}
 
             {error && (
                 <div className="global-msg bad" style={{ marginTop: '10px' }}>
@@ -669,41 +688,10 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                 </div>
             )}
 
-            {/* Cuadrículas por grado */}
-            {rows && grades.map(([gradeId, gradeName]) => (
-                <div key={gradeId} style={{ marginTop: '24px', overflowX: 'auto' }}>
-                    <h3 style={{ color: 'var(--primary-dark)', marginBottom: '10px' }}>{gradeName}</h3>
-                    <table className="gen-grid">
-                        <thead>
-                            <tr>
-                                <th>{t('hour_word')}</th>
-                                {activeDays.map(dk => <th key={dk}>{dayLabels[dk]}</th>)}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Array.from({ length: maxHours }).map((_, h) => (
-                                <tr key={h}>
-                                    <td className="gen-hour">{h + 1}</td>
-                                    {activeDays.map(dk => {
-                                        if (h >= hoursOf(dk)) return <td key={dk} className="gen-off"></td>;
-                                        const c = cellFor(gradeId, dk, h);
-                                        return (
-                                            <td key={dk}>
-                                                {c ? (
-                                                    <div className="gen-cell" style={{ background: (c.color_id || '#eee') + '22', borderLeft: `3px solid ${c.color_id || '#999'}` }}>
-                                                        <div className="gen-subj">{c.abbreviation || c.subject_name}</div>
-                                                        <div className="gen-teacher">{c.teacher_name || t('unassigned')}</div>
-                                                    </div>
-                                                ) : <div className="gen-empty">—</div>}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ))}
+            {/* Vistas del horario (por grado / general / por profesor) + exportación */}
+            {rows && rows.length > 0 && (
+                <ScheduleViews rows={rows} activeDays={activeDays} dayLabels={dayLabels} hoursOf={hoursOf} />
+            )}
 
             {loaded && !rows && !error && !loading && (
                 <p style={{ textAlign: 'center', color: '#aaa', fontSize: '0.85rem', marginTop: '10px' }}>{t('gen_none_yet')}</p>

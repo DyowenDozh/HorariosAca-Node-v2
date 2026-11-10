@@ -57,7 +57,7 @@ const generate = async (userId, scheduleId) => {
     if (demands.length === 0) return { ok: false, reason: 'Ningún grado tiene materias con horas asignadas (Fase 3).' };
 
     // 4. Profesores del horario
-    const [teachers] = await pool.query('SELECT teacher_id FROM teachers WHERE schedule_id = ?', [scheduleId]);
+    const [teachers] = await pool.query('SELECT teacher_id, teacher_name FROM teachers WHERE schedule_id = ?', [scheduleId]);
 
     // 5. Qué materia imparte cada profesor (teacher_subjects)
     const [ts] = await pool.query(
@@ -84,12 +84,32 @@ const generate = async (userId, scheduleId) => {
         'SELECT grade_id, subject_id, `grouping` FROM schedule_pref_details WHERE schedule_id = ?',
         [scheduleId]
     );
+
     const prefDetails = prefRows.map(r => ({
         grade_id: r.grade_id, subject_id: r.subject_id, grouping: r.grouping,
     }));
 
+    // 8. Disponibilidad (franjas ND) y límites diarios de los profesores
+    const [availRows] = await pool.query(
+        `SELECT ta.teacher_id, ta.day_key, ta.hour_index
+         FROM teacher_availability ta
+         JOIN teachers t ON t.teacher_id = ta.teacher_id
+         WHERE t.schedule_id = ? AND ta.status = 'ND'`,
+        [scheduleId]
+    );
+    const availability = availRows.map(r => ({ teacher_id: r.teacher_id, day_key: r.day_key, hour_index: r.hour_index }));
+
+    const [limitRows] = await pool.query(
+        `SELECT tdl.teacher_id, tdl.day_key, tdl.max_hours
+         FROM teacher_day_limits tdl
+         JOIN teachers t ON t.teacher_id = tdl.teacher_id
+         WHERE t.schedule_id = ? AND tdl.max_hours > 0`,
+        [scheduleId]
+    );
+    const dayLimits = limitRows.map(r => ({ teacher_id: r.teacher_id, day_key: r.day_key, max_hours: r.max_hours }));
+
     // --- Ejecutar el motor ---
-    const result = generateSchedule({ days, grades, demands, teachers, canTeach, rules, prefDetails });
+    const result = generateSchedule({ days, grades, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, seed: Date.now() & 0x7fffffff });
     if (!result.ok) return result;
 
     // --- Guardar el resultado en generated_classes (reemplaza el anterior) ---
@@ -111,7 +131,14 @@ const generate = async (userId, scheduleId) => {
         conn.release();
     }
 
-    return { ok: true, total: result.placements.length, stats: result.stats };
+    return {
+        ok: true,
+        total: result.placements.length,
+        stats: result.stats,
+        warning: result.warning || null,
+        relaxed: !!result.relaxed,
+        unplaced: result.unplaced ? result.unplaced.length : 0,
+    };
 };
 
 // Devuelve el horario generado (para mostrarlo)
