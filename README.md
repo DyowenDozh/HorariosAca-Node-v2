@@ -19,6 +19,8 @@ La autenticación se realiza con JSON Web Tokens (JWT) y la arquitectura sigue e
 | Frontend | React | 19.2.8 |
 | Build tool | Vite | 8.2.0 |
 | HTTP Client | axios | 1.19.0 |
+| Exportación Excel | exceljs | 4.4.0 |
+| Exportación PDF | jspdf + jspdf-autotable | 2.5.2 / 3.8.2 |
 
 ---
 
@@ -33,11 +35,15 @@ La autenticación se realiza con JSON Web Tokens (JWT) y la arquitectura sigue e
   2. **Materias** — asignaturas con sigla automática, color y control de duplicados.
   3. **Grados** — creación de grados y su malla curricular (materias y horas semanales, con opción de copiar de otro grado).
   4. **Profesores** — materias que imparte, disponibilidad semanal (D/ND), límites y reglas por grado (podrá / deberá / no impartirá).
-  5. **Preferencias** — preferencias generales y detalladas de agrupamiento por clase.
-  6. **Resultado** — cierre del asistente.
-- **Interfaz bilingüe** español / inglés.
-
-> **Nota:** la generación automática del horario sin choques y la exportación a PDF/Excel están planificadas como trabajo futuro. Toda la configuración necesaria para ellas ya se almacena en la base de datos.
+  5. **Preferencias** — preferencias generales y detalladas de agrupamiento por clase (unir horas, máximo 1/día, días no consecutivos).
+  6. **Generación** — genera el horario automáticamente, lo muestra en tres vistas y permite exportarlo o editarlo a mano.
+- **Generación automática de horarios**: motor en dos fases (asignación de días + coloreo de horas) que respeta las restricciones duras (sin choques de grado ni de profesor, reglas obligatorias, horas exactas) y las preferencias (unir materias, días no consecutivos, límites diarios y disponibilidad del profesor). Incluye:
+  - **Repaso de calidad** que mejora la comodidad de los profesores: evita días libres innecesarios y que un profesor tenga dos horas libres seguidas.
+  - **Relajación por niveles**: si el horario pedido es muy ajustado, va relajando preferencias y avisa al usuario qué no se pudo cumplir y por qué profesor.
+  - **Variedad al regenerar**: cada regeneración explora un acomodo distinto sin empeorar el resultado.
+- **Editor manual del horario**: ajustar el horario a mano sobre una grilla, por grados o por profesores (conmutables en caliente), con lápiz/borrador, aviso de conflictos (rojo/blanco), contador de materias pendientes y opción de limpiar para armar desde cero.
+- **Exportación a PDF y Excel**: tres vistas (por grado, general y por profesor) con opciones de siglas, sin color y horario de estudiante (sin profesores).
+- **Interfaz bilingüe** español / inglés (incluye los archivos exportados).
 
 ---
 
@@ -103,9 +109,27 @@ npm install
 cd ..
 ```
 
+> La exportación a PDF/Excel usa `exceljs`, `jspdf` y `jspdf-autotable` (con sus dependencias `canvg`, `dompurify` y `html2canvas`). Si vienen listadas en `client/package.json`, `npm install` ya las instala. Si al exportar aparece un error de importación, instálalas con:
+> ```bash
+> cd client
+> npm install exceljs jspdf jspdf-autotable canvg dompurify html2canvas
+> ```
+
 ### 4. Crear la base de datos
 
-Crear la base de datos `horariosaca_node` y ejecutar los scripts SQL del proyecto para generar las tablas. El modelo relacional está compuesto por las siguientes tablas:
+Todo el esquema está en el archivo **`schema.sql`** (en la raíz del proyecto). Crea la base de datos `horariosaca_node` y las 15 tablas con sus relaciones.
+
+**Opción A — línea de comandos** (desde la raíz del proyecto):
+
+```bash
+mysql -u root -p < schema.sql
+```
+
+**Opción B — interfaz gráfica** (DBeaver, MySQL Workbench, phpMyAdmin, HeidiSQL…): abre `schema.sql`, selecciona la base de datos y ejecuta todo el script de una vez (en DBeaver, con la base en negrita, `Alt + X`).
+
+El script crea la base si no existe, así que puedes ejecutarlo tal cual. Vuelve a ejecutarlo cuando quieras reiniciar las tablas desde cero (borra y recrea).
+
+El modelo relacional está compuesto por las siguientes tablas:
 
 | Tabla | Descripción |
 |-------|-------------|
@@ -123,8 +147,9 @@ Crear la base de datos `horariosaca_node` y ejecutar los scripts SQL del proyect
 | `teacher_day_limits` | Límite diario de horas por profesor. |
 | `teacher_grade_rules` | Reglas por grado (podrá / debe / no impartirá). |
 | `schedule_pref_details` | Preferencias de agrupamiento por clase. |
+| `generated_classes` | Horario generado o editado a mano: cada clase ubicada en día y hora. |
 
-Todas las relaciones usan llaves foráneas con `ON DELETE CASCADE` para preservar la integridad referencial.
+Todas las relaciones usan llaves foráneas con `ON DELETE CASCADE` (o `SET NULL` en el profesor del horario generado) para preservar la integridad referencial.
 
 ### 5. Configurar variables de entorno
 
@@ -180,6 +205,7 @@ Todos los módulos, salvo autenticación, requieren un token JWT válido en la c
 | Profesores | `/api/teachers` | CRUD de profesores, aislados por horario. |
 | Config. profesor | `/api/teacher-config` | Materias, disponibilidad, límites y reglas por grado. |
 | Preferencias | `/api/pref-details` | Preferencias detalladas de agrupamiento. |
+| Generación | `/api/generate` | Genera y guarda el horario, lo recupera, y da el contexto y guardado de la edición manual. |
 
 ---
 
@@ -206,4 +232,12 @@ Todos los módulos, salvo autenticación, requieren un token JWT válido en la c
 
 ## Estado del proyecto
 
-Este repositorio corresponde a la evidencia **GA8-220501096-AA1-EV02: Módulos integrados** del programa Análisis y Desarrollo de Software (SENA). Los módulos de autenticación, gestión de horarios y las fases de configuración (estructura, materias, grados, profesores y preferencias) se encuentran integrados y funcionales con persistencia real en base de datos. La generación automática del horario y la exportación quedan documentadas como trabajo futuro.
+Proyecto formativo del programa **Análisis y Desarrollo de Software (SENA)**. Se encuentran integrados y funcionales con persistencia real en base de datos:
+
+- Autenticación (registro, inicio de sesión, gestión de cuenta) con JWT y bcrypt.
+- Gestión de horarios (crear, editar, listar, borradores y papelera).
+- Asistente de configuración en 6 fases (estructura, materias, grados, profesores, preferencias y generación).
+- Generación automática del horario con repaso de calidad y relajación por niveles.
+- Editor manual del horario sobre grilla.
+- Exportación a PDF y Excel en tres vistas.
+- Interfaz bilingüe español / inglés.

@@ -6,7 +6,7 @@
 --   Con "horariosaca_node" seleccionada (en negrita), presiona Alt + X
 --   para ejecutar TODO el script de una vez.
 --
--- Este script crea las 14 tablas del sistema con sus relaciones (llaves
+-- Este script crea las 15 tablas del sistema con sus relaciones (llaves
 -- foráneas con ON DELETE CASCADE). No incluye usuarios ni contraseñas:
 -- el primer usuario se registra desde la propia aplicación.
 -- ============================================================================
@@ -15,6 +15,7 @@ CREATE DATABASE IF NOT EXISTS horariosaca_node CHARACTER SET utf8mb4 COLLATE utf
 USE horariosaca_node;
 
 -- Borrado previo en orden inverso a las dependencias (para reejecutar limpio)
+DROP TABLE IF EXISTS generated_classes;
 DROP TABLE IF EXISTS schedule_pref_details;
 DROP TABLE IF EXISTS teacher_grade_rules;
 DROP TABLE IF EXISTS teacher_day_limits;
@@ -209,10 +210,30 @@ CREATE TABLE schedule_pref_details (
     schedule_id INT NOT NULL,
     grade_id    INT NOT NULL,
     subject_id  INT NOT NULL,
-    `grouping`  VARCHAR(20) NOT NULL DEFAULT 'NONE',  -- 'NONE' | 'GROUP2' | 'MAX1'
+    `grouping`  VARCHAR(20) NOT NULL DEFAULT 'NONE',  -- 'NONE' | 'GROUP2' | 'MAX1' | 'NO_CONSEC'
     CONSTRAINT fk_spd_sched   FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
     CONSTRAINT fk_spd_grade   FOREIGN KEY (grade_id)    REFERENCES grades(grade_id)       ON DELETE CASCADE,
     CONSTRAINT fk_spd_subject FOREIGN KEY (subject_id)  REFERENCES subjects(subject_id)   ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 15. HORARIO GENERADO / EDITADO (resultado del motor o del editor manual)
+-- Cada fila es una clase ubicada: grado + materia + profesor en día y franja.
+-- Se reemplaza por completo al regenerar o al guardar la edición manual.
+-- ============================================================================
+CREATE TABLE generated_classes (
+    generated_id INT AUTO_INCREMENT PRIMARY KEY,
+    schedule_id  INT NOT NULL,
+    grade_id     INT NOT NULL,
+    subject_id   INT NOT NULL,
+    teacher_id   INT NULL,                  -- puede quedar sin profesor asignado
+    day_key      VARCHAR(5) NOT NULL,       -- 'lun','mar','mie','jue','vie','sab','dom'
+    hour_index   INT NOT NULL,              -- franja del día (0 = primera hora)
+    CONSTRAINT fk_gc_sched   FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
+    CONSTRAINT fk_gc_grade   FOREIGN KEY (grade_id)    REFERENCES grades(grade_id)       ON DELETE CASCADE,
+    CONSTRAINT fk_gc_subject FOREIGN KEY (subject_id)  REFERENCES subjects(subject_id)   ON DELETE CASCADE,
+    CONSTRAINT fk_gc_teacher FOREIGN KEY (teacher_id)  REFERENCES teachers(teacher_id)   ON DELETE SET NULL,
+    INDEX idx_gc_sched (schedule_id)
 ) ENGINE=InnoDB;
 
 -- ============================================================================
