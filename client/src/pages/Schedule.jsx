@@ -17,8 +17,8 @@ function Schedule() {
 
     const [showWizard, setShowWizard] = useState(false);
     const [editingId, setEditingId] = useState(null);   // id del horario a editar
+    const [wizardPhase, setWizardPhase] = useState(1);  // fase inicial del asistente
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [exportTarget, setExportTarget] = useState(null);
 
     const load = async () => {
         setLoading(true);
@@ -34,12 +34,11 @@ function Schedule() {
     };
 
     useEffect(() => { load(); }, []);
-    
-    // Al pulsar "Gestión" en el sidebar: cierra el editor y vuelve a la lista.
-    useEffect(() => { load(); }, []);
 
-    const openCreate = () => { setEditingId(null); setShowWizard(true); };
-    const openEdit = (s) => { setEditingId(s.schedule_id); setShowWizard(true); };
+    const openCreate = () => { setEditingId(null); setWizardPhase(1); setShowWizard(true); };
+    const openEdit = (s) => { setEditingId(s.schedule_id); setWizardPhase(1); setShowWizard(true); };
+    // Exportar: abre el horario directamente en el paso de Generación (Step 6), donde se exporta.
+    const openExport = (s) => { setEditingId(s.schedule_id); setWizardPhase(6); setShowWizard(true); };
 
     const handleDelete = async () => {
         try {
@@ -59,7 +58,7 @@ function Schedule() {
 
     // Si el asistente está activo, se muestra en lugar de la lista
     if (showWizard) {
-        return <CreateSchedule editingId={editingId} onBack={closeWizard} />;
+        return <CreateSchedule editingId={editingId} initialPhase={wizardPhase} onBack={closeWizard} />;
     }
 
     const fmtDate = (d) => {
@@ -104,7 +103,7 @@ function Schedule() {
                                     <td>{fmtDate(s.created_at)}</td>
                                     <td className="table-actions">
                                         <button title={t('edit')} onClick={() => openEdit(s)}>✏️</button>
-                                        <button title="Exportar" onClick={() => setExportTarget(s)}>📥</button>
+                                        <button title={t('action_export')} onClick={() => openExport(s)}>📥</button>
                                         <button title={t('remove')} onClick={() => setDeleteTarget(s)}>🗑️</button>
                                     </td>
                                 </tr>
@@ -122,7 +121,7 @@ function Schedule() {
             {deleteTarget && (
                 <Modal title={t('remove')} onClose={() => setDeleteTarget(null)}>
                     <p className="confirm-text">
-                        ¿Seguro que deseas eliminar el horario <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.
+                        {t('sched_del_q1')}<strong>{deleteTarget.name}</strong>{t('sched_del_q2')}
                     </p>
                     <div className="modal-actions">
                         <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>{t('btn_cancel')}</button>
@@ -131,16 +130,6 @@ function Schedule() {
                 </Modal>
             )}
 
-            {/* Modal exportar */}
-            {exportTarget && (
-                <Modal title="Exportar horario" onClose={() => setExportTarget(null)}>
-                    <p className="confirm-text">Exportar <strong>{exportTarget.name}</strong>. Elige el formato:</p>
-                    <div className="modal-actions">
-                        <button className="btn-secondary" onClick={() => { alert('La exportación real a PDF se implementará en una versión posterior (RF-09).'); setExportTarget(null); }}>📄 PDF</button>
-                        <button className="btn-secondary" onClick={() => { alert('La exportación real a Excel se implementará en una versión posterior (RF-09).'); setExportTarget(null); }}>📊 Excel</button>
-                    </div>
-                </Modal>
-            )}
         </>
     );
 }

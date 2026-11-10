@@ -22,8 +22,9 @@ function indexByGrade(rows) { const m = new Map(); for (const r of rows) m.set(`
 // ---------- Construcción de tablas (estructura neutra) ----------
 // Cada celda: { text, bg (hex o null), hour?, off? }
 function gradeTable(idx, grade, meta, opts) {
+    const L = opts.labels || {};
     const maxH = Math.max(...meta.days.map(d => d.hours));
-    const head = ['Hora', ...meta.days.map(d => d.label)];
+    const head = [L.hour || 'Hora', ...meta.days.map(d => d.label)];
     const body = [];
     for (let h = 0; h < maxH; h++) {
         const row = [{ text: String(h + 1), bg: null, hour: true }];
@@ -37,13 +38,14 @@ function gradeTable(idx, grade, meta, opts) {
         }
         body.push(row);
     }
-    return { title: 'Grado ' + grade.name, head, body };
+    return { title: (L.grade || 'Grado') + ' ' + grade.name, head, body };
 }
 
 function teacherTable(rows, teacher, meta, opts) {
+    const L = opts.labels || {};
     const tm = new Map(); for (const r of rows) if (r.teacher_id === teacher.id) tm.set(`${r.day_key}|${r.hour_index}`, r);
     const maxH = Math.max(...meta.days.map(d => d.hours));
-    const head = ['Hora', ...meta.days.map(d => d.label)];
+    const head = [L.hour || 'Hora', ...meta.days.map(d => d.label)];
     const body = [];
     for (let h = 0; h < maxH; h++) {
         const row = [{ text: String(h + 1), bg: null, hour: true }];
@@ -56,11 +58,12 @@ function teacherTable(rows, teacher, meta, opts) {
         }
         body.push(row);
     }
-    return { title: 'Profesor ' + teacher.name, head, body };
+    return { title: (L.teacher || 'Profesor') + ' ' + teacher.name, head, body };
 }
 
 function generalTable(idx, meta, opts) {
-    const head = ['Grado', ...meta.days.map(d => d.label)];
+    const L = opts.labels || {};
+    const head = [L.grade || 'Grado', ...meta.days.map(d => d.label)];
     const body = [];
     for (const g of meta.grades) {
         const row = [{ text: g.name, bg: null, hour: true }];
@@ -71,7 +74,7 @@ function generalTable(idx, meta, opts) {
         }
         body.push(row);
     }
-    return { title: 'Horario general', head, body };
+    return { title: L.general || 'Horario general', head, body };
 }
 
 // meta: { days:[{key,label,hours}], grades:[{id,name}], teachers:[{id,name}] }
@@ -119,10 +122,11 @@ function tablesToPdf(tables, filename) {
 }
 
 export function exportPdfs(rows, meta, opts) {
+    const L = opts.labels || {};
     const t = buildTables(rows, meta, opts);
-    tablesToPdf(t.grados, 'Horario-por-grados.pdf');
-    tablesToPdf(t.general, 'Horario-general.pdf');
-    tablesToPdf(t.profesores, 'Horario-por-profesores.pdf');
+    tablesToPdf(t.grados, L.pdfGrades || 'Horario-por-grados.pdf');
+    tablesToPdf(t.general, L.pdfGeneral || 'Horario-general.pdf');
+    tablesToPdf(t.profesores, L.pdfTeachers || 'Horario-por-profesores.pdf');
 }
 
 // ---------- Excel ----------
@@ -151,13 +155,14 @@ function writeTablesToSheet(ws, tables) {
 function thin() { return { top: { style: 'thin', color: { argb: 'FFD2D2D2' } }, left: { style: 'thin', color: { argb: 'FFD2D2D2' } }, bottom: { style: 'thin', color: { argb: 'FFD2D2D2' } }, right: { style: 'thin', color: { argb: 'FFD2D2D2' } } }; }
 
 export async function exportExcel(rows, meta, opts) {
+    const L = opts.labels || {};
     const t = buildTables(rows, meta, opts);
     const wb = new ExcelJS.Workbook();
-    writeTablesToSheet(wb.addWorksheet('Grados'), t.grados);
-    writeTablesToSheet(wb.addWorksheet('General'), t.general);
-    writeTablesToSheet(wb.addWorksheet('Profesores'), t.profesores);
+    writeTablesToSheet(wb.addWorksheet(L.sheetGrades || 'Grados'), t.grados);
+    writeTablesToSheet(wb.addWorksheet(L.sheetGeneral || 'General'), t.general);
+    writeTablesToSheet(wb.addWorksheet(L.sheetTeachers || 'Profesores'), t.profesores);
     const buf = await wb.xlsx.writeBuffer();
-    download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'Horario.xlsx');
+    download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), L.fileName || 'Horario.xlsx');
 }
 
 // Exporto helpers de construcción por si la vista en pantalla los reutiliza.

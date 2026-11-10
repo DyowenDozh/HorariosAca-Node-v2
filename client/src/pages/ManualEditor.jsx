@@ -9,8 +9,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getEditorContext, saveManualSchedule } from '../services/api';
 import Modal from '../components/Modal';
+import { useLanguage } from '../i18n/LanguageContext';
 
-const DAY_LABELS = { lun: 'Lun', mar: 'Mar', mie: 'Mié', jue: 'Jue', vie: 'Vie', sab: 'Sáb', dom: 'Dom' };
 const K = (a, b, c) => `${a}|${b}|${c}`;
 
 // Aclara un color hex mezclándolo con blanco (para fondos suaves).
@@ -23,6 +23,8 @@ function tint(hex, f = 0.80) {
 }
 
 export default function ManualEditor({ scheduleId, onClose }) {
+    const { t } = useLanguage();
+    const DAY_LABELS = { lun: t('day_mon'), mar: t('day_tue'), mie: t('day_wed'), jue: t('day_thu'), vie: t('day_fri'), sab: t('day_sat'), dom: t('day_sun') };
     const [ctx, setCtx] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -53,7 +55,7 @@ export default function ManualEditor({ scheduleId, onClose }) {
                 })));
                 setSelected(res.data.grades[0]?.grade_id ?? null);
             } catch {
-                setError('No se pudo cargar la información del horario.');
+                setError(t('me_load_error'));
             } finally { setLoading(false); }
         })();
     }, [scheduleId]);
@@ -83,11 +85,11 @@ export default function ManualEditor({ scheduleId, onClose }) {
         setSaving(true); setError('');
         try {
             await saveManualSchedule(scheduleId, grid);
-            setDirty(false); setSavedMsg('Cambios guardados.');
+            setDirty(false); setSavedMsg(t('me_saved'));
             setTimeout(() => setSavedMsg(''), 2500);
             return true;
         } catch {
-            setError('No se pudo guardar.'); return false;
+            setError(t('me_save_error')); return false;
         } finally { setSaving(false); }
     }, [scheduleId, grid]);
 
@@ -162,7 +164,7 @@ export default function ManualEditor({ scheduleId, onClose }) {
         setConfirm({ day, hour, removals, apply: () => { placeHeld(day, hour, removals); setConfirm(null); } });
     };
 
-    if (loading) return <div className="settings-card" style={{ textAlign: 'center' }}><p className="loading-text">Cargando…</p></div>;
+    if (loading) return <div className="settings-card" style={{ textAlign: 'center' }}><p className="loading-text">{t('loading')}</p></div>;
     if (error && !ctx) return <div className="settings-card"><div className="global-msg bad">{error}</div></div>;
 
     // ============================ EDICIÓN ============================
@@ -180,36 +182,36 @@ export default function ManualEditor({ scheduleId, onClose }) {
             {/* Barra superior */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <button className="btn-secondary" onClick={() => guard(onClose)} style={{ alignSelf: 'center', padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>← Volver</button>
+                    <button className="btn-secondary" onClick={() => guard(onClose)} style={{ alignSelf: 'center', padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>{t('me_back')}</button>
 
                     {/* Recuadro: Modo de edición (cambiar de vista conserva el horario) */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 10px' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-soft)', marginBottom: '5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Modo de edición</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-soft)', marginBottom: '5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('me_mode')}</div>
                         <div className="day-tabs">
-                            <button className={view === 'grade' ? 'active' : ''} onClick={() => { if (view !== 'grade') { setView('grade'); setSelected(ctx.grades[0]?.grade_id ?? null); setHeld(null); } }}>Por grados</button>
-                            <button className={view === 'teacher' ? 'active' : ''} onClick={() => { if (view !== 'teacher') { setView('teacher'); setSelected(ctx.teachers[0]?.teacher_id ?? null); setHeld(null); } }}>Por profesores</button>
+                            <button className={view === 'grade' ? 'active' : ''} onClick={() => { if (view !== 'grade') { setView('grade'); setSelected(ctx.grades[0]?.grade_id ?? null); setHeld(null); } }}>{t('me_by_grades')}</button>
+                            <button className={view === 'teacher' ? 'active' : ''} onClick={() => { if (view !== 'teacher') { setView('teacher'); setSelected(ctx.teachers[0]?.teacher_id ?? null); setHeld(null); } }}>{t('me_by_teachers')}</button>
                         </div>
                     </div>
 
                     {/* Recuadro: Herramientas (con ayuda) */}
                     <div style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 10px' }}>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-soft)', marginBottom: '5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            Herramientas
-                            <span title={'Lápiz: toma una materia de la lista (o una clase del horario) y colócala en una casilla con un clic.\nBorrador: clic sobre una clase para quitarla; vuelve a la lista de pendientes.'}
+                            {t('me_tools')}
+                            <span title={t('me_tools_help')}
                                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '15px', height: '15px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '0.68rem', fontWeight: 700, cursor: 'help' }}>?</span>
                         </div>
                         <div className="day-tabs">
-                            <button className={tool === 'pencil' ? 'active' : ''} title="Coloca materias en las casillas" onClick={() => { setTool('pencil'); }}>✏️ Lápiz</button>
-                            <button className={tool === 'eraser' ? 'active' : ''} title="Quita la clase de una casilla" onClick={() => { setTool('eraser'); setHeld(null); }}>🧽 Borrador</button>
+                            <button className={tool === 'pencil' ? 'active' : ''} title={t('me_pencil_tip')} onClick={() => { setTool('pencil'); }}>✏️ {t('me_pencil')}</button>
+                            <button className={tool === 'eraser' ? 'active' : ''} title={t('me_eraser_tip')} onClick={() => { setTool('eraser'); setHeld(null); }}>🧽 {t('me_eraser')}</button>
                         </div>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {savedMsg && <span style={{ color: 'var(--success)', fontSize: '0.85rem' }}>{savedMsg}</span>}
-                    {dirty && <span style={{ color: '#b26a00', fontSize: '0.8rem' }}>● sin guardar</span>}
-                    <button className="btn-secondary" onClick={() => setConfirmClear(true)} disabled={grid.length === 0} style={{ padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>🗑️ Limpiar horario</button>
-                    <button className="submit-btn" onClick={doSave} disabled={saving || !dirty} style={{ padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>
+                    {dirty && <span style={{ color: '#b26a00', fontSize: '0.8rem' }}>● {t('me_unsaved')}</span>}
+                    <button className="btn-secondary" onClick={() => setConfirmClear(true)} disabled={grid.length === 0} style={{ padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>🗑️ {t('me_clear')}</button>
+                    <button className="submit-btn" onClick={doSave} disabled={saving || !dirty} style={{ padding: '7px 14px', fontSize: '0.88rem', width: 'auto', flex: '0 0 auto' }}>{saving ? t('me_saving') : t('me_save')}</button>
                 </div>
             </div>
 
@@ -217,7 +219,7 @@ export default function ManualEditor({ scheduleId, onClose }) {
 
             {/* Selector de entidad */}
             <div style={{ marginBottom: '14px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-soft)', marginRight: '8px' }}>{view === 'grade' ? 'Grado:' : 'Profesor:'}</label>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-soft)', marginRight: '8px' }}>{view === 'grade' ? t('me_grade_label') : t('me_teacher_label')}</label>
                 <select value={selected ?? ''} onChange={e => { setSelected(Number(e.target.value)); setHeld(null); }} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)' }}>
                     {entities.map(en => <option key={en.id} value={en.id}>{en.name}</option>)}
                 </select>
@@ -226,9 +228,9 @@ export default function ManualEditor({ scheduleId, onClose }) {
             <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 {/* Paleta */}
                 <div style={{ flex: '0 0 230px', minWidth: '210px' }}>
-                    <h4 style={{ margin: '0 0 8px', color: 'var(--primary)' }}>Materias {view === 'grade' ? 'del grado' : 'del profesor'}</h4>
+                    <h4 style={{ margin: '0 0 8px', color: 'var(--primary)' }}>{view === 'grade' ? t('me_subjects_grade') : t('me_subjects_teacher')}</h4>
                     <p style={{ fontSize: '0.76rem', color: 'var(--text-soft)', margin: '0 0 10px' }}>
-                        {tool === 'eraser' ? 'Borrador activo: clic en una clase para quitarla.' : (held ? 'Clic en una casilla blanca para ponerla.' : 'Clic en una materia para tomarla.')}
+                        {tool === 'eraser' ? t('me_hint_eraser') : (held ? t('me_hint_place') : t('me_hint_take'))}
                     </p>
                     {paletteGroups.map(grp => (
                         <div key={grp.key} style={{ marginBottom: grp.label ? '10px' : 0 }}>
@@ -239,7 +241,7 @@ export default function ManualEditor({ scheduleId, onClose }) {
                                     const isHeld = held && held.grade_id === it.grade_id && held.subject_id === it.subject_id;
                                     const done = it.pending <= 0;
                                     const label = view === 'grade' ? (s?.subject_name || '—') : (gradeById[it.grade_id]?.grade_name || '—');
-                                    const sub = view === 'grade' ? (teacherById[it.teacher_id]?.teacher_name || 'Sin profesor') : (s?.subject_name || '');
+                                    const sub = view === 'grade' ? (teacherById[it.teacher_id]?.teacher_name || t('me_no_teacher')) : (s?.subject_name || '');
                                     return (
                                         <button key={`${it.grade_id}-${it.subject_id}`} onClick={() => { if (tool !== 'eraser' && !done) setHeld(isHeld ? null : { grade_id: it.grade_id, subject_id: it.subject_id, teacher_id: it.teacher_id }); }}
                                             disabled={tool === 'eraser' || done}
@@ -302,42 +304,42 @@ export default function ManualEditor({ scheduleId, onClose }) {
 
             {/* Aviso: se va a quitar algo */}
             {confirm && (
-                <Modal title="La hora ya está ocupada" onClose={() => setConfirm(null)}>
-                    <p style={{ marginBottom: '8px' }}>Para poner esta clase hay que quitar:</p>
+                <Modal title={t('me_occupied_title')} onClose={() => setConfirm(null)}>
+                    <p style={{ marginBottom: '8px' }}>{t('me_occupied_intro')}</p>
                     <ul style={{ margin: '0 0 10px', paddingLeft: '18px' }}>
                         {confirm.removals.map((r, i) => (
                             <li key={i} style={{ fontSize: '0.88rem' }}>
-                                {gradeById[r.grade_id]?.grade_name} — {subjById[r.subject_id]?.subject_name} ({teacherById[r.teacher_id]?.teacher_name || 'sin profesor'})
+                                {gradeById[r.grade_id]?.grade_name} — {subjById[r.subject_id]?.subject_name} ({teacherById[r.teacher_id]?.teacher_name || t('me_no_teacher')})
                             </li>
                         ))}
                     </ul>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-soft)' }}>Lo que se quite volverá a la lista de pendientes para recolocarlo.</p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-soft)' }}>{t('me_occupied_note')}</p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button>
-                        <button className="submit-btn" onClick={confirm.apply}>Quitar y poner</button>
+                        <button className="btn-secondary" onClick={() => setConfirm(null)}>{t('btn_cancel')}</button>
+                        <button className="submit-btn" onClick={confirm.apply}>{t('me_remove_place')}</button>
                     </div>
                 </Modal>
             )}
 
             {/* Aviso: cambios sin guardar */}
             {pending && (
-                <Modal title="Cambios sin guardar" onClose={() => setPending(null)}>
-                    <p>Tienes cambios sin guardar. ¿Qué quieres hacer?</p>
+                <Modal title={t('unsaved_title')} onClose={() => setPending(null)}>
+                    <p>{t('unsaved_text')}</p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => { const a = pending; setPending(null); a(); }}>Descartar y continuar</button>
-                        <button className="submit-btn" onClick={async () => { const a = pending; const ok = await doSave(); if (ok) { setPending(null); a(); } }} disabled={saving}>{saving ? 'Guardando…' : 'Guardar y continuar'}</button>
+                        <button className="btn-secondary" onClick={() => { const a = pending; setPending(null); a(); }}>{t('me_discard_continue')}</button>
+                        <button className="submit-btn" onClick={async () => { const a = pending; const ok = await doSave(); if (ok) { setPending(null); a(); } }} disabled={saving}>{saving ? t('me_saving') : t('me_save_continue')}</button>
                     </div>
                 </Modal>
             )}
 
             {/* Confirmación: limpiar todo el horario */}
             {confirmClear && (
-                <Modal title="Limpiar horario" onClose={() => setConfirmClear(false)}>
-                    <p>Esto quitará <strong>todas</strong> las clases del horario y lo dejará vacío para armarlo desde cero.</p>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-soft)' }}>No se borra definitivamente hasta que le des "Guardar cambios".</p>
+                <Modal title={t('me_clear')} onClose={() => setConfirmClear(false)}>
+                    <p>{t('me_clear_text1')}</p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-soft)' }}>{t('me_clear_text2')}</p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => setConfirmClear(false)}>Cancelar</button>
-                        <button className="btn-danger" onClick={clearAll}>Limpiar todo</button>
+                        <button className="btn-secondary" onClick={() => setConfirmClear(false)}>{t('btn_cancel')}</button>
+                        <button className="btn-danger" onClick={clearAll}>{t('me_clear_confirm')}</button>
                     </div>
                 </Modal>
             )}

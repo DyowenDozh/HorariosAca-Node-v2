@@ -6,24 +6,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import Modal from '../components/Modal';
+import { setExitToList, clearExitToList } from '../utils/navGuard';
+import ScheduleViews from './ScheduleViews';
+import ManualEditor from './ManualEditor';
 import Subjects from './Subjects';
 import Grades from './Grades';
 import Teachers from './Teachers';
 import { Phase1DayConfig, defaultDay } from './Phase1DayConfig';
-import { setExitToList, clearExitToList } from '../utils/navGuard';
 import {
     getScheduleById, updateSchedule, createDraft, draftHasData,
     finalizeSchedule, deleteSchedulePermanent, getPrefDetails, savePrefDetails,
     generateSchedule, getGeneratedSchedule
 } from '../services/api';
-import ScheduleViews from './ScheduleViews';
-import ManualEditor from './ManualEditor';
 
 const TOTAL_PHASES = 6;
 
-function CreateSchedule({ onBack, editingId }) {
+function CreateSchedule({ onBack, editingId, initialPhase }) {
     const { t } = useLanguage();
-    const [phase, setPhase] = useState(1);
+    const [phase, setPhase] = useState(initialPhase || 1);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
 
@@ -57,7 +57,7 @@ function CreateSchedule({ onBack, editingId }) {
     const [draftExitPrompt, setDraftExitPrompt] = useState(false);
     // Modal al pulsar "Siguiente" en la fase de Grados (fase 3)
     const [gradeContinuePrompt, setGradeContinuePrompt] = useState(false);
-    // para que módulo de Grados abra el formulario de "Nuevo grado"
+    // Señal para que el módulo de Grados abra el formulario de "Nuevo grado"
     const [newGradeSignal, setNewGradeSignal] = useState(0);
     // Modal al pulsar "Siguiente" en la fase de Profesores (fase 4)
     const [teacherContinuePrompt, setTeacherContinuePrompt] = useState(false);
@@ -134,7 +134,8 @@ function CreateSchedule({ onBack, editingId }) {
     const isDirty = () => savedSnapshot.current !== currentSnapshot();
 
     // Registra la salida del editor para que el botón "Gestión" del sidebar
-    // haga lo mismo que "Volver a la lista".
+    // haga lo mismo que "Volver a la lista". goBackRef siempre apunta a la
+    // versión actual de goBackToList (evita cerrar con estado viejo).
     const goBackRef = useRef(null);
     useEffect(() => {
         setExitToList(() => { if (goBackRef.current) goBackRef.current(); });
@@ -153,7 +154,6 @@ function CreateSchedule({ onBack, editingId }) {
         if (phase === 4) { setTeacherContinuePrompt(true); return; }
         guardedGo(() => setPhase(p => Math.min(TOTAL_PHASES, p + 1)));
     };
-
     const prev = () => guardedGo(() => setPhase(p => Math.max(1, p - 1)));
 
     // Volver a la lista: si es un borrador (nuevo) sin nombre/datos, decidir si descartar
@@ -163,7 +163,7 @@ function CreateSchedule({ onBack, editingId }) {
     };
     goBackRef.current = goBackToList; // mantiene la salida del sidebar actualizada
 
-    // Sale del wizard, si es un borrador nuevo, decide descartar o preguntar
+    // Sale del wizard; si es un borrador nuevo, decide descartar o preguntar
     const reallyExit = async () => {
         if (!isEditing && activeIdRef.current) {
             try {
@@ -347,29 +347,29 @@ function CreateSchedule({ onBack, editingId }) {
                 )}
             </div>
 
-            {/* Modal añadir otro grado o continuar a Profesores? */}
+            {/* Modal: ¿añadir otro grado o continuar a Profesores? */}
             {gradeContinuePrompt && (
-                <Modal title="Grados" onClose={() => setGradeContinuePrompt(false)}>
-                    <p className="confirm-text">¿Deseas añadir otro grado o continuar con los profesores?</p>
+                <Modal title={t('grades_modal_title')} onClose={() => setGradeContinuePrompt(false)}>
+                    <p className="confirm-text">{t('grades_continue_q')}</p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => { setGradeContinuePrompt(false); setNewGradeSignal(s => s + 1); }}>+ Añadir otro grado</button>
-                        <button className="submit-btn" onClick={() => { setGradeContinuePrompt(false); setPhase(4); }}>Continuar a Profesores →</button>
+                        <button className="btn-secondary" onClick={() => { setGradeContinuePrompt(false); setNewGradeSignal(s => s + 1); }}>{t('add_another_grade')}</button>
+                        <button className="submit-btn" onClick={() => { setGradeContinuePrompt(false); setPhase(4); }}>{t('continue_to_teachers')}</button>
                     </div>
                 </Modal>
             )}
 
             {/* Modal: ¿añadir otro profesor o continuar a Preferencias? */}
             {teacherContinuePrompt && (
-                <Modal title="Profesores" onClose={() => setTeacherContinuePrompt(false)}>
-                    <p className="confirm-text">¿Deseas añadir otro profesor o continuar con las preferencias?</p>
+                <Modal title={t('teachers_modal_title')} onClose={() => setTeacherContinuePrompt(false)}>
+                    <p className="confirm-text">{t('teachers_continue_q')}</p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => { setTeacherContinuePrompt(false); setNewTeacherSignal(s => s + 1); }}>+ Añadir otro profesor</button>
-                        <button className="submit-btn" onClick={() => { setTeacherContinuePrompt(false); setPhase(5); }}>Continuar a Preferencias →</button>
+                        <button className="btn-secondary" onClick={() => { setTeacherContinuePrompt(false); setNewTeacherSignal(s => s + 1); }}>{t('add_another_teacher')}</button>
+                        <button className="submit-btn" onClick={() => { setTeacherContinuePrompt(false); setPhase(5); }}>{t('continue_to_prefs')}</button>
                     </div>
                 </Modal>
             )}
 
-            {/* Modal cambios sin guardar */}
+            {/* Modal: cambios sin guardar */}
             {pendingAction && (
                 <Modal title={t('unsaved_title')} onClose={modalCancel}>
                     <p className="confirm-text">{t('unsaved_text')}</p>
@@ -644,10 +644,11 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
         }
     };
 
-    
+    // Editor manual (pantalla completa dentro de la fase)
     if (editing) {
         return <ManualEditor scheduleId={scheduleId} onClose={() => { setEditing(false); loadRows(); }} />;
     }
+
     return (
         <div className="settings-card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', padding: rows ? '10px 0 20px' : '30px 0' }}>
@@ -659,28 +660,28 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                         {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
                     </button>
                     <button className="btn-secondary" onClick={() => setEditing(true)} disabled={loading}>
-                        ✏️ Editar manualmente
+                        ✏️ {t('edit_manual')}
                     </button>
                 </div>
                 {rows && !loading && (
                     <p style={{ color: 'var(--text-soft)', fontSize: '0.8rem', marginTop: '8px' }}>
-                        Al regenerar se reemplaza el horario actual. Si quieres conservarlo, descárgalo antes (PDF o Excel).
+                        {t('gen_regen_note')}
                     </p>
                 )}
             </div>
 
             {/* Aviso simple antes de regenerar */}
             {confirmRegen && (
-                <Modal title="Regenerar horario" onClose={() => setConfirmRegen(false)}>
+                <Modal title={t('regen_title')} onClose={() => setConfirmRegen(false)}>
                     <p style={{ marginBottom: '6px' }}>
-                        Esto reemplazará el horario actual por uno nuevo. El horario que ves ahora se perderá.
+                        {t('regen_text1')}
                     </p>
                     <p style={{ color: 'var(--text-soft)', fontSize: '0.88rem' }}>
-                        Si quieres conservarlo, descárgalo primero (PDF o Excel) y luego regenera.
+                        {t('regen_text2')}
                     </p>
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
-                        <button className="btn-secondary" onClick={() => setConfirmRegen(false)}>Cancelar</button>
-                        <button className="submit-btn" onClick={() => { setConfirmRegen(false); handleGenerate(); }}>Regenerar de todas formas</button>
+                        <button className="btn-secondary" onClick={() => setConfirmRegen(false)}>{t('btn_cancel')}</button>
+                        <button className="submit-btn" onClick={() => { setConfirmRegen(false); handleGenerate(); }}>{t('regen_confirm')}</button>
                     </div>
                 </Modal>
             )}
@@ -695,7 +696,9 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                 <p style={{ textAlign: 'center', color: warning ? 'var(--text-soft)' : 'var(--success)', fontSize: '0.9rem' }}>
                     {t('gen_success')} · {stats.units} {t('gen_classes_placed')}
                 </p>
-            )}{warning && !error && (
+            )}
+
+            {warning && !error && (
                 <div style={{ marginTop: '10px', padding: '12px 14px', borderRadius: '8px', background: '#FFF4E5', border: '1px solid #F0C36D', color: '#8A5A00', fontSize: '0.88rem' }}>
                     ⚠️ {warning}
                 </div>
