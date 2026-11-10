@@ -159,4 +159,61 @@ const getGenerated = async (userId, scheduleId) => {
     return rows;
 };
 
-module.exports = { generate, getGenerated };
+// ---------------------------------------------------------------------------
+// Edición manual del horario
+// ---------------------------------------------------------------------------
+
+// Contexto completo para el editor manual.
+const getEditorContext = async (userId, scheduleId) => {
+    const [own] = await pool.query('SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?', [scheduleId, userId]);
+    if (own.length === 0) return null;
+
+    const days = await buildDays(scheduleId);
+    const [grades] = await pool.query('SELECT grade_id, grade_name FROM grades WHERE schedule_id = ? ORDER BY grade_name', [scheduleId]);
+    const [teachers] = await pool.query('SELECT teacher_id, teacher_name FROM teachers WHERE schedule_id = ? ORDER BY teacher_name', [scheduleId]);
+    const [subjects] = await pool.query('SELECT subject_id, subject_name, abbreviation, color_id FROM subjects WHERE schedule_id = ?', [scheduleId]);
+
+    const [demands] = await pool.query(
+        `SELECT gs.grade_id, gs.subject_id, gs.weekly_hours,
+                COALESCE(gs.teacher_id,
+                    (SELECT tgr.teacher_id FROM teacher_grade_rules tgr
+                      WHERE tgr.grade_id = gs.grade_id AND tgr.subject_id = gs.subject_id AND tgr.rule = 'DEBE'
+                      LIMIT 1)
+                ) AS teacher_id
+         FROM grade_subjects gs
+         JOIN grades g ON g.grade_id = gs.grade_id
+         WHERE g.schedule_id = ? AND gs.weekly_hours > 0`,
+        [scheduleId]
+    );
+
+    const placements = await getGenerated(userId, scheduleId);
+    return { days, grades, teachers, subjects, demands, placements: placements || [] };
+};
+
+// Guarda un horario editado a mano (permite guardar incompleto).
+const saveManual = async (userId, scheduleId, placements) => {
+    const [own] = await pool.query('SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?', [scheduleId, userId]);
+    if (own.length === 0) return { ok: false, reason: 'Horario no encontrado.' };
+    if (!Array.isArray(placements)) return { ok: false, reason: 'Datos inválidos.' };
+
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        await conn.query('DELETE FROM generated_classes WHERE schedule_id = ?', [scheduleId]);
+        for (const p of placements) {
+            await conn.query(
+                'INSERT INTO generated_classes (schedule_id, grade_id, subject_id, teacher_id, day_key, hour_index) VALUES (?, ?, ?, ?, ?, ?)',
+                [scheduleId, p.grade_id, p.subject_id, p.teacher_id || null, p.day_key, p.hour_index]
+            );
+        }
+        await conn.commit();
+    } catch (error) {
+        await conn.rollback();
+        throw new Error('Error guardando el horario editado: ' + error.message);
+    } finally {
+        conn.release();
+    }
+    return { ok: true, total: placements.length };
+};
+
+module.exports = { generate, getGenerated, getEditorContext, saveManual };

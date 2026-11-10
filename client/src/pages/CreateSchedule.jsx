@@ -17,6 +17,7 @@ import {
     generateSchedule, getGeneratedSchedule
 } from '../services/api';
 import ScheduleViews from './ScheduleViews';
+import ManualEditor from './ManualEditor';
 
 const TOTAL_PHASES = 6;
 
@@ -601,6 +602,7 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     const [warning, setWarning] = useState(null); // aviso si el horario se relajó
     const [loaded, setLoaded] = useState(false); // ¿ya intentamos cargar uno existente?
     const [confirmRegen, setConfirmRegen] = useState(false); // aviso antes de regenerar
+    const [editing, setEditing] = useState(false); // editor manual abierto
 
     const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
     const dayLabels = { lun: t('day_mon'), mar: t('day_tue'), mie: t('day_wed'), jue: t('day_thu'), vie: t('day_fri'), sab: t('day_sat'), dom: t('day_sun') };
@@ -610,15 +612,17 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     const hoursOf = (dk) => dayMode === 'uniform' ? (Number(days?.all?.hoursPerDay) || 0) : (Number(days?.[dk]?.hoursPerDay) || 0);
     const maxHours = Math.max(0, ...activeDays.map(hoursOf));
 
-    // Al entrar, intenta cargar un horario ya generado
+    // Carga el horario generado (reutilizable: al entrar y al volver del editor)
+    const loadRows = async () => {
+        try {
+            const res = await getGeneratedSchedule(scheduleId);
+            setRows(res.data && res.data.length > 0 ? res.data : null);
+        } catch { /* ninguno aún */ }
+        finally { setLoaded(true); }
+    };
+
     useEffect(() => {
-        (async () => {
-            try {
-                const res = await getGeneratedSchedule(scheduleId);
-                if (res.data && res.data.length > 0) setRows(res.data);
-            } catch { /* ninguno aún */ }
-            finally { setLoaded(true); }
-        })();
+        loadRows();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -640,15 +644,24 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
         }
     };
 
+    
+    if (editing) {
+        return <ManualEditor scheduleId={scheduleId} onClose={() => { setEditing(false); loadRows(); }} />;
+    }
     return (
         <div className="settings-card" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', padding: rows ? '10px 0 20px' : '30px 0' }}>
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px' }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>{t('phase6_ready_title')}</h2>
                 <p style={{ color: 'var(--text-soft)', maxWidth: '520px', margin: '0 auto 18px' }}>{t('gen_intro')}</p>
-                <button className="submit-btn" onClick={() => rows ? setConfirmRegen(true) : handleGenerate()} disabled={loading}>
-                    {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
-                </button>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button className="submit-btn" onClick={() => rows ? setConfirmRegen(true) : handleGenerate()} disabled={loading}>
+                        {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
+                    </button>
+                    <button className="btn-secondary" onClick={() => setEditing(true)} disabled={loading}>
+                        ✏️ Editar manualmente
+                    </button>
+                </div>
                 {rows && !loading && (
                     <p style={{ color: 'var(--text-soft)', fontSize: '0.8rem', marginTop: '8px' }}>
                         Al regenerar se reemplaza el horario actual. Si quieres conservarlo, descárgalo antes (PDF o Excel).

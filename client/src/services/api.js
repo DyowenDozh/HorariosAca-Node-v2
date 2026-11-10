@@ -198,5 +198,14 @@ export const getGeneratedSchedule = async (scheduleId) => {
     const { data } = await api.get(`/generate/${scheduleId}`);
     return data;
 };
+// Edición manual del horario
+export const getEditorContext = async (scheduleId) => {
+    const { data } = await api.get(`/generate/${scheduleId}/editor`);
+    return data;
+};
+export const saveManualSchedule = async (scheduleId, placements) => {
+    const { data } = await api.put(`/generate/${scheduleId}/manual`, { placements });
+    return data;
+};
 
 export default api;
