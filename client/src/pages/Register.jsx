@@ -23,7 +23,7 @@ function Register({ onNavigate }) {
         // Validación del formato del correo (mismo criterio que el backend)
         const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRe.test(email.trim())) {
-            setError('El formato del correo electrónico no es válido (ej: nombre@dominio.com)');
+            setError(t('error_email_format'));
             return;
         }
         if (password !== confirm) {
@@ -31,14 +31,14 @@ function Register({ onNavigate }) {
             return;
         }
         if (password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres');
+            setError(t('error_password_min'));
             return;
         }
 
         setLoading(true);
         try {
             await registerUser(nombre, email, password);
-            setOk('¡Cuenta creada! Ya puedes iniciar sesión.');
+            setOk(t('register_ok'));
             setNombre(''); setEmail(''); setPassword(''); setConfirm('');
         } catch (err) {
             setError(err.response?.data?.message || t('error_email_exists'));
@@ -56,13 +56,13 @@ function Register({ onNavigate }) {
                     <h2>{t('register_title')}</h2>
 
                     <div className="input-group">
-                        <label htmlFor="nombre">Nombre completo</label>
+                        <label htmlFor="nombre">{t('label_fullname')}</label>
                         <input
                             type="text"
                             id="nombre"
                             value={nombre}
                             onChange={(e) => setNombre(e.target.value)}
-                            placeholder="Tu nombre"
+                            placeholder={t('ph_fullname')}
                             required
                         />
                     </div>
@@ -74,7 +74,7 @@ function Register({ onNavigate }) {
                             id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="ejemplo@correo.com"
+                            placeholder={t('ph_email')}
                             required
                         />
                     </div>
