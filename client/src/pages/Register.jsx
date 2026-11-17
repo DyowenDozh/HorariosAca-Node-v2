@@ -41,7 +41,7 @@ function Register({ onNavigate }) {
             setOk(t('register_ok'));
             setNombre(''); setEmail(''); setPassword(''); setConfirm('');
         } catch (err) {
-            setError(err.response?.data?.message || t('error_email_exists'));
+            setError(err.response?.status === 409 ? t('error_email_exists') : t('error_login_generic'));
         } finally {
             setLoading(false);
         }

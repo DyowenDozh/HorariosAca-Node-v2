@@ -22,7 +22,7 @@ function Login({ onLoginSuccess, onNavigate }) {
             localStorage.setItem('user', JSON.stringify(data.user));
             onLoginSuccess();
         } catch (err) {
-            setError(err.response?.data?.message || 'Error al iniciar sesión');
+            setError(err.response?.status === 401 ? t('error_invalid_credentials') : t('error_login_generic'));
         } finally {
             setLoading(false);
         }

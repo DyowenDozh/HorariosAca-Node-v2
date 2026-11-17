@@ -53,7 +53,7 @@ function Settings({ onLogout }) {
             setEditingProfile(false);
             setMsg({ text: t('settings_saved'), ok: true });
         } catch (err) {
-            setMsg({ text: err.response?.data?.message || t('settings_save_error'), ok: false });
+             setMsg({ text: err.response?.status === 409 ? t('error_email_exists') : t('settings_save_error'), ok: false });
         }
     };
 
@@ -77,7 +77,7 @@ function Settings({ onLogout }) {
             setShowCur(false); setShowNew(false);
             setPassMsg({ text: t('settings_pass_ok'), ok: true });
         } catch (err) {
-            setPassMsg({ text: err.response?.data?.message || t('settings_pass_error'), ok: false });
+            setPassMsg({ text: err.response?.status === 400 ? t('error_current_password') : t('settings_pass_error'), ok: false });
         }
     };
 

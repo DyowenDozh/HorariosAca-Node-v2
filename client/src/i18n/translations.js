@@ -451,8 +451,17 @@ const translations = {
         label_password: "Password",
         label_confirm_password: "Confirm Password",
         error_email_exists: "This email is already registered",
+        
+        //update error mesages
+        error_invalid_credentials: "Invalid credentials",
+        error_login_generic: "Could not sign in. Please try again.",
+        error_current_password: "The current password is incorrect",
     },
     es: {
+        //update error mesages
+        error_invalid_credentials: "Credenciales inválidas",
+        error_login_generic: "No se pudo iniciar sesión. Inténtalo de nuevo.",
+        error_current_password: "La contraseña actual es incorrecta",
 
         // Register Page
         label_confirm_password: "Confirmar Contraseña",
