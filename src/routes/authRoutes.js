@@ -12,6 +12,7 @@ router.post('/login', authController.login);
 router.get('/me', verifyToken, authController.getMe);
 router.put('/me', verifyToken, authController.updateMe);
 router.put('/password', verifyToken, authController.updatePassword);
+router.put('/plan', verifyToken, authController.setPlan);
 router.delete('/me', verifyToken, authController.deleteMe);
 
 module.exports = router;

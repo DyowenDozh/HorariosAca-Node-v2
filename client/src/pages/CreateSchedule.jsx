@@ -603,6 +603,10 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
     const [loaded, setLoaded] = useState(false); // ¿ya intentamos cargar uno existente?
     const [confirmRegen, setConfirmRegen] = useState(false); // aviso antes de regenerar
     const [editing, setEditing] = useState(false); // editor manual abierto
+    const [showUpgrade, setShowUpgrade] = useState(false); // aviso de función Premium
+
+    // ¿El usuario tiene plan Premium? (generar/editar son Premium)
+    const isPremium = (() => { try { return !!JSON.parse(localStorage.getItem('user'))?.is_premium; } catch { return false; } })();
 
     const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
     const dayLabels = { lun: t('day_mon'), mar: t('day_tue'), mie: t('day_wed'), jue: t('day_thu'), vie: t('day_fri'), sab: t('day_sat'), dom: t('day_sun') };
@@ -638,7 +642,8 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                 setRows(got.data || []);
             }
         } catch (err) {
-            setError(err.response?.data?.message || t('gen_error'));
+            if (err.response?.status === 403 && err.response?.data?.premiumRequired) setShowUpgrade(true);
+            else setError(err.response?.data?.message || t('gen_error'));
         } finally {
             setLoading(false);
         }
@@ -656,10 +661,10 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                 <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>{t('phase6_ready_title')}</h2>
                 <p style={{ color: 'var(--text-soft)', maxWidth: '520px', margin: '0 auto 18px' }}>{t('gen_intro')}</p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <button className="submit-btn" onClick={() => rows ? setConfirmRegen(true) : handleGenerate()} disabled={loading}>
+                    <button className="submit-btn" onClick={() => { if (!isPremium) { setShowUpgrade(true); return; } rows ? setConfirmRegen(true) : handleGenerate(); }} disabled={loading}>
                         {loading ? t('gen_working') : (rows ? t('gen_regenerate') : t('gen_generate'))}
                     </button>
-                    <button className="btn-secondary" onClick={() => setEditing(true)} disabled={loading}>
+                    <button className="btn-secondary" onClick={() => { if (!isPremium) { setShowUpgrade(true); return; } setEditing(true); }} disabled={loading}>
                         ✏️ {t('edit_manual')}
                     </button>
                 </div>
@@ -682,6 +687,17 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
                     <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
                         <button className="btn-secondary" onClick={() => setConfirmRegen(false)}>{t('btn_cancel')}</button>
                         <button className="submit-btn" onClick={() => { setConfirmRegen(false); handleGenerate(); }}>{t('regen_confirm')}</button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Aviso: función Premium (RF-11) */}
+            {showUpgrade && (
+                <Modal title={t('premium_needed_title')} onClose={() => setShowUpgrade(false)}>
+                    <p style={{ marginBottom: '6px' }}>{t('premium_needed_text')}</p>
+                    <p style={{ color: 'var(--text-soft)', fontSize: '0.88rem' }}>{t('premium_needed_hint')}</p>
+                    <div className="modal-actions" style={{ flexWrap: 'wrap' }}>
+                        <button className="submit-btn" onClick={() => setShowUpgrade(false)}>{t('btn_got_it')}</button>
                     </div>
                 </Modal>
             )}

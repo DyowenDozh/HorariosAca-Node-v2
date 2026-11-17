@@ -45,6 +45,12 @@ export const deleteAccount = async () => {
     return data;
 };
 
+// Activa (true) o desactiva (false) el plan Premium del usuario.
+export const setPlan = async (premium) => {
+    const { data } = await api.put('/auth/plan', { premium });
+    return data;
+};
+
 /* ============================ TEACHERS ============================ */
 export const getTeachers = async (scheduleId) => {
     const { data } = await api.get('/teachers', { params: { schedule_id: scheduleId } });
@@ -203,6 +209,7 @@ export const getGeneratedSchedule = async (scheduleId) => {
     const { data } = await api.get(`/generate/${scheduleId}`);
     return data;
 };
+
 // Edición manual del horario
 export const getEditorContext = async (scheduleId) => {
     const { data } = await api.get(`/generate/${scheduleId}/editor`);

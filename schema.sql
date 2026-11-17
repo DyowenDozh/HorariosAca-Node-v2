@@ -39,6 +39,7 @@ CREATE TABLE users (
     nombre     VARCHAR(100) NOT NULL,
     email      VARCHAR(100) NOT NULL UNIQUE,
     password   VARCHAR(255) NOT NULL,
+    is_premium TINYINT(1) NOT NULL DEFAULT 0,   -- plan: 0 = Básico, 1 = Premium
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

@@ -53,7 +53,7 @@ const login = async (email, password) => {
 
         return {
             token,
-            user: { id: user.user_id, nombre: user.nombre, email: user.email }
+            user: { id: user.user_id, nombre: user.nombre, email: user.email, is_premium: !!user.is_premium }
         };
     } catch (error) {
         throw error;
@@ -63,11 +63,25 @@ const login = async (email, password) => {
 // Obtener perfil del usuario autenticado
 const getProfile = async (userId) => {
     const [rows] = await pool.query(
-        'SELECT user_id, nombre, email, created_at FROM users WHERE user_id = ?',
+        'SELECT user_id, nombre, email, is_premium, created_at FROM users WHERE user_id = ?',
         [userId]
     );
     if (rows.length === 0) throw new Error('User not found');
-    return rows[0];
+    const u = rows[0];
+    return { ...u, is_premium: !!u.is_premium };
+};
+
+// ¿El usuario tiene plan Premium activo?
+const isPremium = async (userId) => {
+    const [rows] = await pool.query('SELECT is_premium FROM users WHERE user_id = ?', [userId]);
+    return rows.length > 0 && !!rows[0].is_premium;
+};
+
+// Cambiar el plan del usuario (activar/desactivar Premium). Sin pasarela de pago:
+// activar = simular compra; desactivar = cancelar (p. ej. para pruebas o si deja de usarlo).
+const setPlan = async (userId, premium) => {
+    await pool.query('UPDATE users SET is_premium = ? WHERE user_id = ?', [premium ? 1 : 0, userId]);
+    return { is_premium: !!premium };
 };
 
 // Actualizar nombre y email
@@ -105,4 +119,4 @@ const deleteAccount = async (userId) => {
     return { message: 'Account deleted' };
 };
 
-module.exports = { register, login, getProfile, updateProfile, changePassword, deleteAccount };
+module.exports = { register, login, getProfile, updateProfile, changePassword, deleteAccount, isPremium, setPlan };

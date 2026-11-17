@@ -118,4 +118,16 @@ const deleteMe = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getMe, updateMe, updatePassword, deleteMe };
+// PUT /api/auth/plan  → activa/desactiva el plan Premium del usuario
+const setPlan = async (req, res) => {
+    try {
+        const premium = req.body.premium === true || req.body.premium === 'true' || req.body.premium === 1;
+        const result = await authService.setPlan(req.user.user_id, premium);
+        res.status(200).json({ message: 'Plan updated', ...result });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+module.exports = { register, login, getMe, updateMe, updatePassword, deleteMe, setPlan };

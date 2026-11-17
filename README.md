@@ -45,6 +45,7 @@ La autenticación se realiza con JSON Web Tokens (JWT) y la arquitectura sigue e
 - **Editor manual del horario**: ajustar el horario a mano sobre una grilla, por grados o por profesores (conmutables en caliente), con lápiz/borrador, aviso de conflictos (rojo/blanco), contador de materias pendientes y opción de limpiar para armar desde cero.
 - **Exportación a PDF y Excel**: tres vistas (por grado, general y por profesor) con opciones de siglas, sin color y horario de estudiante (sin profesores).
 - **Interfaz bilingüe** español / inglés (incluye los archivos exportados).
+- **Planes Básico / Premium**: la generación automática y la edición manual del horario requieren plan Premium; el usuario Básico puede ingresar datos, ver y exportar. El cambio de plan se activa/desactiva desde la vista de Planes (activación simulada; la pasarela de pago real queda como trabajo futuro).
 
 ---
 
@@ -130,11 +131,18 @@ mysql -u root -p < schema.sql
 
 El script crea la base si no existe, así que puedes ejecutarlo tal cual. Vuelve a ejecutarlo cuando quieras reiniciar las tablas desde cero (borra y recrea).
 
+> **¿Ya tienes la base creada de una versión anterior y no quieres perder datos?** Para una base existente no reejecutes todo el script (borraría los datos). Aplica solo los cambios nuevos con `ALTER TABLE`:
+> ```sql
+> -- Columna de plan (Básico/Premium) en usuarios
+> ALTER TABLE users ADD COLUMN is_premium TINYINT(1) NOT NULL DEFAULT 0 AFTER password;
+> ```
+> La tabla `generated_classes` también es nueva; si te falta, créala con el bloque correspondiente del `schema.sql`.
+
 El modelo relacional está compuesto por las siguientes tablas:
 
 | Tabla | Descripción |
 |-------|-------------|
-| `users` | Usuarios registrados del sistema. |
+| `users` | Usuarios registrados del sistema (incluye `is_premium`: 0 = Básico, 1 = Premium). |
 | `schedules` | Horarios; pertenecen a un usuario. |
 | `schedule_days` | Configuración de cada día de un horario. |
 | `schedule_breaks` | Descansos de cada día. |
@@ -198,7 +206,7 @@ Todos los módulos, salvo autenticación, requieren un token JWT válido en la c
 
 | Módulo | Ruta base | Descripción |
 |--------|-----------|-------------|
-| Autenticación | `/api/auth` | Registro e inicio de sesión (emite JWT). |
+| Autenticación | `/api/auth` | Registro, inicio de sesión (emite JWT), perfil y cambio de plan (Básico/Premium). |
 | Horarios | `/api/schedules` | CRUD de horarios, borradores, papelera, finalización y duplicación. |
 | Materias | `/api/subjects` | CRUD de asignaturas, aisladas por horario. |
 | Grados | `/api/grades` | CRUD de grados, aislados por horario. |
@@ -241,4 +249,5 @@ Proyecto formativo del programa **Análisis y Desarrollo de Software (SENA)**. S
 - Generación automática del horario con repaso de calidad y relajación por niveles.
 - Editor manual del horario sobre grilla.
 - Exportación a PDF y Excel en tres vistas.
+- Planes Básico / Premium con control de acceso a la generación y edición (activación simulada; pasarela de pago como trabajo futuro).
 - Interfaz bilingüe español / inglés.
