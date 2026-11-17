@@ -239,8 +239,11 @@ function TeacherCard({ teacher, scheduleId, dayMode, days, workDays, onBack, t }
             const dl = {};
             (cfg.dayLimits || []).forEach(d => { dl[d.day_key] = d.max_hours; });
             setDayLimits(dl);
+            const mySubjIds = new Set((cfg.subjects || []).map(s => s.subject_id));
             const rl = {};
-            (cfg.rules || []).forEach(r => { rl[`${r.subject_id}-${r.grade_id}`] = r.rule; });
+            (cfg.rules || []).forEach(r => {
+                if (mySubjIds.has(r.subject_id)) rl[`${r.subject_id}-${r.grade_id}`] = r.rule; // ignora reglas de materias que ya no imparte
+            });
             setRules(rl);
 
             // Contexto para contador de horas y bloqueo de grados tomados
@@ -274,7 +277,14 @@ function TeacherCard({ teacher, scheduleId, dayMode, days, workDays, onBack, t }
     const openPicker = () => { setPendingSel([]); setSearch(''); setPickerOpen(true); };
     const togglePending = (id) => setPendingSel(sel => sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]);
     const confirmPicker = () => { setSubjectIds(prev => [...prev, ...pendingSel]); setPickerOpen(false); };
-    const removeSubject = (id) => setSubjectIds(prev => prev.filter(x => x !== id));
+    const removeSubject = (id) => {
+        setSubjectIds(prev => prev.filter(x => x !== id));
+        // También elimina las reglas por grado (PODRA/DEBE/NO) de esa materia,
+        // para que bajen las horas obligatorias y no queden grados asignados a una materia que ya no imparte.
+        setRules(prev => Object.fromEntries(
+            Object.entries(prev).filter(([k]) => k.split('-')[0] !== String(id))
+        ));
+    };
 
     // Estado de una celda: solo 'D' (disponible) o 'ND' (bloqueada manualmente).
     // Los límites diario (LD) y semanal (LS) se guardan como datos y los usará el
