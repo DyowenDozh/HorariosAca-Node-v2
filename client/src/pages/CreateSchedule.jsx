@@ -327,7 +327,8 @@ function CreateSchedule({ onBack, editingId, initialPhase }) {
                     <div className="wizard-phase-wrap"><p className="wizard-hint">{t('phase4_hint')}</p><Teachers scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} newTeacherSignal={newTeacherSignal} /></div>
                 )}
                 {phase === 5 && <Phase5 prefs={prefs} setPrefs={setPrefs} scheduleId={activeId} t={t} />}
-                {phase === 6 && <Phase6 scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} t={t} />}
+                {phase === 6 && <Phase6 scheduleId={activeId} dayMode={dayMode} days={days} workDays={workDays} t={t}
+                    info={{ name, institution: general.institution, schoolYear: general.schoolYear, journey: general.journey }} />}
             </div>
 
             {saveError && <p className="global-msg bad" style={{ marginBottom: '10px' }}>{saveError}</p>}
@@ -594,7 +595,7 @@ function Phase5Detailed({ scheduleId, t }) {
 }
 
 /* ---------- Fase 6: Resultado ---------- */
-function Phase6({ scheduleId, dayMode, days, workDays, t }) {
+function Phase6({ scheduleId, dayMode, days, workDays, t, info }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [rows, setRows] = useState(null);     // clases generadas
@@ -722,7 +723,7 @@ function Phase6({ scheduleId, dayMode, days, workDays, t }) {
 
             {/* Vistas del horario (por grado / general / por profesor) + exportación */}
             {rows && rows.length > 0 && (
-                <ScheduleViews rows={rows} activeDays={activeDays} dayLabels={dayLabels} hoursOf={hoursOf} />
+                <ScheduleViews rows={rows} activeDays={activeDays} dayLabels={dayLabels} hoursOf={hoursOf} info={info} />
             )}
 
             {loaded && !rows && !error && !loading && (

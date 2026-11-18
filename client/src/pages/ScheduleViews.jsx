@@ -3,8 +3,10 @@ import { useState, useMemo } from 'react';
 import { buildTables, exportPdfs, exportExcel } from '../utils/exportSchedule';
 import { useLanguage } from '../i18n/LanguageContext';
 
-export default function ScheduleViews({ rows, activeDays, dayLabels, hoursOf }) {
-    const { t } = useLanguage();
+const JOURNEY_KEY = { 'mañana': 'journey_morning', 'tarde': 'journey_afternoon', 'noche': 'journey_night', 'completa': 'journey_full' };
+
+export default function ScheduleViews({ rows, activeDays, dayLabels, hoursOf, info }) {
+    const { t, lang } = useLanguage();
     const [view, setView] = useState('grado');
     const [siglas, setSiglas] = useState(false);
     const [sinColor, setSinColor] = useState(false);
@@ -14,15 +16,25 @@ export default function ScheduleViews({ rows, activeDays, dayLabels, hoursOf }) 
         const days = activeDays.map(dk => ({ key: dk, label: dayLabels[dk] || dk, hours: hoursOf(dk) }));
         const gmap = new Map(); rows.forEach(r => { if (!gmap.has(r.grade_id)) gmap.set(r.grade_id, r.grade_name); });
         const tmap = new Map(); rows.forEach(r => { if (r.teacher_id && !tmap.has(r.teacher_id)) tmap.set(r.teacher_id, r.teacher_name); });
-        return { days, grades: [...gmap].map(([id, name]) => ({ id, name })), teachers: [...tmap].map(([id, name]) => ({ id, name })) };
+        const header = info ? {
+            name: info.name || '',
+            institution: info.institution || '',
+            schoolYear: info.schoolYear || '',
+            journey: info.journey ? (t(JOURNEY_KEY[info.journey]) || info.journey) : '',
+        } : null;
+        return { days, grades: [...gmap].map(([id, name]) => ({ id, name })), teachers: [...tmap].map(([id, name]) => ({ id, name })), header };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rows, activeDays, dayLabels]);
+    }, [rows, activeDays, dayLabels, info]);
 
     // Etiquetas localizadas para los archivos exportados (PDF/Excel).
     const labels = {
         hour: t('exp_hour'), grade: t('exp_grade'), general: t('exp_general_title'), teacher: t('exp_teacher'),
         sheetGrades: t('exp_sheet_grades'), sheetTeachers: t('exp_sheet_teachers'), sheetGeneral: t('exp_sheet_general'), fileName: t('exp_file_name'),
         pdfGrades: t('exp_pdf_grades'), pdfGeneral: t('exp_pdf_general'), pdfTeachers: t('exp_pdf_teachers'),
+        // Etiquetas del cuadro superior (sin depender del diccionario)
+        ...(lang === 'en'
+            ? { hdrTitle: 'Schedule', hdrInstitution: 'Institution', hdrYear: 'School year', hdrJourney: 'Shift' }
+            : { hdrTitle: 'Horario', hdrInstitution: 'Institución', hdrYear: 'Año escolar', hdrJourney: 'Jornada' }),
     };
     const opts = { siglas, sinColor, ocultarProfesor, labels };
     const tables = useMemo(() => buildTables(rows, meta, opts), [rows, meta, siglas, sinColor, ocultarProfesor]);

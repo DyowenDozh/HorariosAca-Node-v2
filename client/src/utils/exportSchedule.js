@@ -103,14 +103,37 @@ function cellStyles(c) {
     if (c.bg) { const rgb = hexToRgb(c.bg); if (rgb) s.fillColor = rgb; }
     return s;
 }
-function tablesToPdf(tables, filename) {
+// Dibuja un cuadro elegante con los datos del horario. Devuelve la Y donde seguir.
+function pdfHeaderBlock(doc, header, L) {
+    if (!header) return 36; // sin datos: título como antes
+    const pageW = doc.internal.pageSize.getWidth();
+    const x = 40, w = pageW - 80;
+    // Banda de título (morado oscuro)
+    doc.setFillColor(46, 42, 107);
+    doc.rect(x, 20, w, 24, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.setFontSize(14);
+    doc.text(`${L.hdrTitle || 'Horario'}: ${header.name || '—'}`, x + 10, 36);
+    // Sub-banda de datos (lila claro)
+    doc.setFillColor(237, 235, 250);
+    doc.rect(x, 44, w, 18, 'F');
+    doc.setTextColor(60, 47, 143); doc.setFont(undefined, 'normal'); doc.setFontSize(9.5);
+    const line = `${L.hdrInstitution || 'Institución'}: ${header.institution || '—'}        `
+        + `${L.hdrYear || 'Año escolar'}: ${header.schoolYear || '—'}        `
+        + `${L.hdrJourney || 'Jornada'}: ${header.journey || '—'}`;
+    doc.text(line, x + 10, 56);
+    doc.setTextColor(40, 40, 40); // restaurar color
+    return 70;
+}
+function tablesToPdf(tables, filename, header, L) {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     let first = true;
     for (const tb of tables) {
         if (!first) doc.addPage(); first = false;
-        doc.setFontSize(13); doc.text(tb.title, 40, 36);
+        const topY = pdfHeaderBlock(doc, header, L || {});
+        doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.text(tb.title, 40, topY + 12);
+        doc.setFont(undefined, 'normal');
         doc.autoTable({
-            startY: 48,
+            startY: topY + 22,
             head: [tb.head],
             body: tb.body.map(r => r.map(c => ({ content: c.text, styles: cellStyles(c) }))),
             styles: { fontSize: 8, cellPadding: 3, valign: 'middle', halign: 'center', lineWidth: 0.5, lineColor: [210, 210, 210], textColor: [40, 40, 40] },
@@ -124,9 +147,9 @@ function tablesToPdf(tables, filename) {
 export function exportPdfs(rows, meta, opts) {
     const L = opts.labels || {};
     const t = buildTables(rows, meta, opts);
-    tablesToPdf(t.grados, L.pdfGrades || 'Horario-por-grados.pdf');
-    tablesToPdf(t.general, L.pdfGeneral || 'Horario-general.pdf');
-    tablesToPdf(t.profesores, L.pdfTeachers || 'Horario-por-profesores.pdf');
+    tablesToPdf(t.grados, L.pdfGrades || 'Horario-por-grados.pdf', meta.header, L);
+    tablesToPdf(t.general, L.pdfGeneral || 'Horario-general.pdf', meta.header, L);
+    tablesToPdf(t.profesores, L.pdfTeachers || 'Horario-por-profesores.pdf', meta.header, L);
 }
 
 // ---------- Excel ----------
@@ -154,13 +177,50 @@ function writeTablesToSheet(ws, tables) {
 }
 function thin() { return { top: { style: 'thin', color: { argb: 'FFD2D2D2' } }, left: { style: 'thin', color: { argb: 'FFD2D2D2' } }, bottom: { style: 'thin', color: { argb: 'FFD2D2D2' } }, right: { style: 'thin', color: { argb: 'FFD2D2D2' } } }; }
 
+// Cuadro elegante con los datos del horario en la parte superior de la hoja.
+function writeHeaderToSheet(ws, header, L, cols) {
+    if (!header) return;
+    const last = Math.max(2, cols || 2);
+    const NAVY = 'FF2E2A6B', LILAC = 'FFEDEBFA', SOFT = 'FFF7F6FD';
+    const bd = thin();
+    const center = { horizontal: 'center', vertical: 'middle' };
+
+    // Fila 1: nombre del horario (banda oscura)
+    const r1 = ws.addRow([`${L.hdrTitle || 'Horario'}: ${header.name || '—'}`]);
+    ws.mergeCells(r1.number, 1, r1.number, last); r1.height = 26;
+    const c1 = r1.getCell(1);
+    c1.font = { bold: true, size: 15, color: { argb: 'FFFFFFFF' } };
+    c1.alignment = center; c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+
+    // Fila 2: institución (banda lila)
+    const r2 = ws.addRow([`${L.hdrInstitution || 'Institución'}: ${header.institution || '—'}`]);
+    ws.mergeCells(r2.number, 1, r2.number, last); r2.height = 20;
+    const c2 = r2.getCell(1);
+    c2.font = { bold: true, size: 11, color: { argb: 'FF3C2F8F' } };
+    c2.alignment = center; c2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LILAC } };
+
+    // Fila 3: año | jornada (dos mitades)
+    const r3 = ws.addRow([]); r3.height = 20;
+    const mid = Math.max(1, Math.floor(last / 2));
+    ws.mergeCells(r3.number, 1, r3.number, mid);
+    ws.mergeCells(r3.number, mid + 1, r3.number, last);
+    const cl = r3.getCell(1), cr = r3.getCell(mid + 1);
+    cl.value = `${L.hdrYear || 'Año escolar'}: ${header.schoolYear || '—'}`;
+    cr.value = `${L.hdrJourney || 'Jornada'}: ${header.journey || '—'}`;
+    for (const cc of [cl, cr]) { cc.font = { size: 11, color: { argb: 'FF333333' } }; cc.alignment = center; cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SOFT } }; }
+
+    // Bordes del cuadro
+    for (const rr of [r1, r2, r3]) for (let col = 1; col <= last; col++) rr.getCell(col).border = bd;
+    ws.addRow([]); // separador
+}
 export async function exportExcel(rows, meta, opts) {
     const L = opts.labels || {};
     const t = buildTables(rows, meta, opts);
+    const cols = 1 + (meta.days ? meta.days.length : 0);
     const wb = new ExcelJS.Workbook();
-    writeTablesToSheet(wb.addWorksheet(L.sheetGrades || 'Grados'), t.grados);
-    writeTablesToSheet(wb.addWorksheet(L.sheetGeneral || 'General'), t.general);
-    writeTablesToSheet(wb.addWorksheet(L.sheetTeachers || 'Profesores'), t.profesores);
+    const wsG = wb.addWorksheet(L.sheetGrades || 'Grados'); writeHeaderToSheet(wsG, meta.header, L, cols); writeTablesToSheet(wsG, t.grados);
+    const wsGen = wb.addWorksheet(L.sheetGeneral || 'General'); writeHeaderToSheet(wsGen, meta.header, L, cols); writeTablesToSheet(wsGen, t.general);
+    const wsT = wb.addWorksheet(L.sheetTeachers || 'Profesores'); writeHeaderToSheet(wsT, meta.header, L, cols); writeTablesToSheet(wsT, t.profesores);
     const buf = await wb.xlsx.writeBuffer();
     download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), L.fileName || 'Horario.xlsx');
 }
