@@ -9,6 +9,9 @@ const DAY_ORDER = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
 // Toma la config de schedule_days; si el modo es 'uniform', usa la fila 'all'
 // para todos los días marcados como laborales en la propia tabla.
 async function buildDays(scheduleId) {
+    const [schedRows] = await pool.query('SELECT day_mode FROM schedules WHERE schedule_id = ?', [scheduleId]);
+    const isUniform = (schedRows[0]?.day_mode || 'uniform') === 'uniform';
+
     const [rows] = await pool.query(
         'SELECT day_key, is_working, hours_per_day FROM schedule_days WHERE schedule_id = ?',
         [scheduleId]
@@ -22,7 +25,8 @@ async function buildDays(scheduleId) {
         const row = byKey[dk];
         // Un día cuenta si está marcado como laboral
         if (row && row.is_working) {
-            const hours = uniform ? uniform.hours_per_day : row.hours_per_day;
+            // Modo uniforme: usa las horas de 'all'. Modo por día: usa las de cada día.
+            const hours = (isUniform && uniform) ? uniform.hours_per_day : row.hours_per_day;
             if (hours > 0) days.push({ day_key: dk, hours });
         }
     }
@@ -84,7 +88,6 @@ const generate = async (userId, scheduleId) => {
         'SELECT grade_id, subject_id, `grouping` FROM schedule_pref_details WHERE schedule_id = ?',
         [scheduleId]
     );
-
     const prefDetails = prefRows.map(r => ({
         grade_id: r.grade_id, subject_id: r.subject_id, grouping: r.grouping,
     }));
@@ -108,8 +111,15 @@ const generate = async (userId, scheduleId) => {
     );
     const dayLimits = limitRows.map(r => ({ teacher_id: r.teacher_id, day_key: r.day_key, max_hours: r.max_hours }));
 
+    // 9. Preferencia general: ¿no repetir la misma materia el mismo día? (Fase 5)
+    const [genPref] = await pool.query(
+        'SELECT no_repeat_same_day FROM schedule_prefs WHERE schedule_id = ?', [scheduleId]
+    );
+    const noRepeatSameDay = genPref.length ? !!genPref[0].no_repeat_same_day : true;
+
     // --- Ejecutar el motor ---
-    const result = generateSchedule({ days, grades, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, seed: Date.now() & 0x7fffffff });
+    // seed por tiempo: cada generación (y cada "regenerar") explora un acomodo distinto.
+    const result = generateSchedule({ days, grades, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, noRepeatSameDay, seed: Date.now() & 0x7fffffff });
     if (!result.ok) return result;
 
     // --- Guardar el resultado en generated_classes (reemplaza el anterior) ---
@@ -163,7 +173,10 @@ const getGenerated = async (userId, scheduleId) => {
 // Edición manual del horario
 // ---------------------------------------------------------------------------
 
-// Contexto completo para el editor manual.
+// Contexto completo para el editor manual: días, grados, profesores, materias,
+// la demanda (malla) con el profesor asignado a cada materia de cada grado, y el
+// horario actual generado (si existe). El cliente arma con esto las vistas,
+// la paleta con contadores y el chequeo de conflictos.
 const getEditorContext = async (userId, scheduleId) => {
     const [own] = await pool.query('SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?', [scheduleId, userId]);
     if (own.length === 0) return null;
@@ -173,6 +186,7 @@ const getEditorContext = async (userId, scheduleId) => {
     const [teachers] = await pool.query('SELECT teacher_id, teacher_name FROM teachers WHERE schedule_id = ? ORDER BY teacher_name', [scheduleId]);
     const [subjects] = await pool.query('SELECT subject_id, subject_name, abbreviation, color_id FROM subjects WHERE schedule_id = ?', [scheduleId]);
 
+    // Demanda por grado-materia con el profesor asignado (directo en la malla, o la regla DEBE).
     const [demands] = await pool.query(
         `SELECT gs.grade_id, gs.subject_id, gs.weekly_hours,
                 COALESCE(gs.teacher_id,
@@ -190,7 +204,8 @@ const getEditorContext = async (userId, scheduleId) => {
     return { days, grades, teachers, subjects, demands, placements: placements || [] };
 };
 
-// Guarda un horario editado a mano (permite guardar incompleto).
+// Guarda un horario editado a mano (reemplaza generated_classes). Permite guardar
+// incompleto: si faltan clases por ubicar, simplemente se guardan menos filas.
 const saveManual = async (userId, scheduleId, placements) => {
     const [own] = await pool.query('SELECT schedule_id FROM schedules WHERE schedule_id = ? AND user_id = ?', [scheduleId, userId]);
     if (own.length === 0) return { ok: false, reason: 'Horario no encontrado.' };

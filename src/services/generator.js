@@ -38,10 +38,10 @@ function makeRng(seed) {
 }
 
 function generateSchedule(input) {
-    const { days, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, seed } = input;
+    const { days, demands, teachers, canTeach, rules, prefDetails, availability, dayLimits, seed, noRepeatSameDay = true } = input;
+    const allowRepeat = !noRepeatSameDay; // si la preferencia está apagada, una materia puede repetirse el mismo día
 
     const numDays = days.length;
-    const Hd = days.map(d => d.hours); // franjas de cada día
     if (numDays === 0) return { ok: false, reason: 'El horario no tiene días laborales configurados.' };
     const hoursOfDay = days.map(d => d.hours);
     const S = hoursOfDay.reduce((a, b) => a + b, 0);
@@ -132,15 +132,24 @@ function generateSchedule(input) {
     const doPolish = (pl) => input.polish === false ? pl : polish(pl, polishCtx, { seed });
 
     // NIVEL 1
-    let r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: false, budget: BUDGET_TIER1, seed });
+    let r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: false, allowRepeat, budget: BUDGET_TIER1, seed });
     if (r.ok) return { ok: true, placements: doPolish(r.placements), relaxed: false, stats: { ...r.stats, ms: Date.now() - t0 } };
 
     // NIVEL 2 (ignora preferencias detalladas)
     const hadDetailed = vars.some(v => v.grouping === 'GROUP2' || v.grouping === 'NO_CONSEC');
-    r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: true, budget: BUDGET_TIER2, seed });
+    r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: true, allowRepeat, budget: BUDGET_TIER2, seed });
     if (r.ok) return { ok: true, placements: doPolish(r.placements), relaxed: true,
         warning: hadDetailed ? 'No se pudieron respetar algunas preferencias detalladas (unir materias o separarlas en días no consecutivos); se generó un horario válido sin esas preferencias.' : 'Se generó un horario relajando algunas preferencias.',
         stats: { ...r.stats, ms: Date.now() - t0 } };
+
+    // NIVEL 2.5: si el usuario pidió "no repetir la misma materia el mismo día" pero con esa
+    // regla no se puede llenar el horario, se ignora esa regla para completarlo (sin huecos).
+    if (!allowRepeat) {
+        r = twoPhase(vars, { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed: true, allowRepeat: true, budget: BUDGET_TIER2, seed });
+        if (r.ok) return { ok: true, placements: doPolish(r.placements), relaxed: true,
+            warning: 'No se pudo respetar "no repetir la misma materia el mismo día" con la configuración dada; se permitió repetir materias para completar el horario.',
+            stats: { ...r.stats, ms: Date.now() - t0 } };
+    }
 
     // NIVEL 3 (mejor esfuerzo)
     const be = bestEffort(vars, { numDays, hoursOfDay, gradeIds, teachers, days, ndHours });
@@ -162,16 +171,17 @@ function generateSchedule(input) {
 // Dos fases (días + horas). relaxDetailed=true ignora GROUP2 y NO_CONSEC.
 // ============================================================================
 function twoPhase(vars, ctx) {
-    const { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed, budget } = ctx;
+    const { numDays, hoursOfDay, gradeIds, teachers, days, teacherCap, ndHours, relaxDetailed, allowRepeat = false, budget } = ctx;
     const start = Date.now();
     const deadline = start + budget; // tope de tiempo total de este nivel
+    const maxDayHours = Math.max(1, ...hoursOfDay);
 
     // Capacidad por materia según reglas de días
     const maxNonConsec = Math.ceil(numDays / 2);
     for (const v of vars) {
         const g2 = !relaxDetailed && v.grouping === 'GROUP2';
         const nc = !relaxDetailed && v.grouping === 'NO_CONSEC';
-        const maxPerDay = g2 ? 2 : 1;
+        const maxPerDay = g2 ? 2 : (allowRepeat ? maxDayHours : 1);
         if (v.hours > numDays * maxPerDay) return { ok: false };
         if (nc && v.hours > maxNonConsec) return { ok: false }; // no caben en días no consecutivos
     }
@@ -211,16 +221,20 @@ function twoPhase(vars, ctx) {
         function nextKind(vi) { if (blockRem[vi] > 0) return 'block'; if (singlesRem[vi] > 0) return 'single'; return null; }
         // Primer día permitido para el próximo "single" (respeta no-consecutivos)
         function singleFromDay(vi) {
+            if (isNC[vi]) return lastSingleDay[vi] < 0 ? 0 : lastSingleDay[vi] + 2;
+            if (allowRepeat) return lastSingleDay[vi] < 0 ? 0 : lastSingleDay[vi]; // permite repetir el mismo día (orden no decreciente)
             if (lastSingleDay[vi] < 0) return 0;
-            return lastSingleDay[vi] + (isNC[vi] ? 2 : 1);
+            return lastSingleDay[vi] + 1;
         }
+        // ¿se debe saltar un día ya usado por esta materia? Sí para bloques o cuando no se permite repetir.
+        const skipUsed = (vi, kind) => (kind === 'block' || !allowRepeat);
         function feasibleDaysCount(vi) {
             const v = vars[vi]; const kind = nextKind(vi); if (!kind) return 0;
             const weight = kind === 'block' ? 2 : 1;
             const from = kind === 'single' ? singleFromDay(vi) : 0;
             let c = 0;
             for (let d = from; d < numDays; d++) {
-                if (usedDay[vi][d]) continue;
+                if (skipUsed(vi, kind) && usedDay[vi][d]) continue;
                 if (gradeDay[v.grade_id][d] + weight > hoursOfDay[d]) continue;
                 if (freeTeachers(vi, d, weight).length > 0) c++;
             }
@@ -247,16 +261,25 @@ function twoPhase(vars, ctx) {
                 const remItems = (blockRem[vi] > 0 ? 1 : 0) + singlesRem[vi];
                 let slack;
                 if (!anyBlock && !isNC[vi]) {
-                    let availDays = 0;
-                    for (let d = 0; d < numDays; d++) { if (usedDay[vi][d]) continue; if (gradeDay[v.grade_id][d] + 1 <= hoursOfDay[d] && freeTeachers(vi, d, 1).length > 0) availDays++; }
-                    if (availDays < remItems) return false;
-                    slack = availDays - remItems;
+                    let availCap = 0;
+                    for (let d = 0; d < numDays; d++) {
+                        if (!allowRepeat && usedDay[vi][d]) continue;
+                        const gfree = hoursOfDay[d] - gradeDay[v.grade_id][d];
+                        if (gfree <= 0) continue;
+                        if (freeTeachers(vi, d, 1).length === 0) continue;
+                        // sin repetir: 1 por día; con repetir: hasta la capacidad libre del grado ese día
+                        availCap += allowRepeat ? gfree : 1;
+                    }
+                    if (availCap < remItems) return false;
+                    slack = availCap - remItems;
                 } else {
                     const fd = feasibleDaysCount(vi);
                     if (fd < 1) return false;
-                    // cota de días disponibles para los items restantes
-                    let avail = 0; for (let d = 0; d < numDays; d++) if (!usedDay[vi][d]) avail++;
-                    if (avail < remItems) return false;
+                    // cota de días disponibles para los items restantes (solo si no se permite repetir)
+                    if (!allowRepeat) {
+                        let avail = 0; for (let d = 0; d < numDays; d++) if (!usedDay[vi][d]) avail++;
+                        if (avail < remItems) return false;
+                    }
                     slack = fd - 1;
                 }
                 if (slack < bestSlack || (slack === bestSlack && remItems > bestRemTot)) { bestSlack = slack; best = vi; bestRemTot = remItems; }
@@ -269,7 +292,7 @@ function twoPhase(vars, ctx) {
             const from = kind === 'single' ? singleFromDay(vi) : 0;
             const dayList = [];
             for (let d = from; d < numDays; d++) {
-                if (usedDay[vi][d]) continue;
+                if (skipUsed(vi, kind) && usedDay[vi][d]) continue;
                 if (gradeDay[v.grade_id][d] + weight > hoursOfDay[d]) continue;
                 if (freeTeachers(vi, d, weight).length > 0) dayList.push(d);
             }
@@ -280,7 +303,8 @@ function twoPhase(vars, ctx) {
             for (const d of dayList) {
                 const ft = freeTeachers(vi, d, weight); if (rnd) shuffle(ft, rnd);
                 for (const tid of ft) {
-                    gradeDay[v.grade_id][d] += weight; teacherDay[tid][d] += weight; usedDay[vi][d] = 1;
+                    const markUsed = skipUsed(vi, kind);
+                    gradeDay[v.grade_id][d] += weight; teacherDay[tid][d] += weight; if (markUsed) usedDay[vi][d] = 1;
                     teacherRemCap[tid] -= weight;
                     const isForced = forcedTeacher[vi] === tid;
                     if (isForced) teacherReq[tid] -= weight;
@@ -292,7 +316,7 @@ function twoPhase(vars, ctx) {
                     if (kind === 'block') blockRem[vi] = 1; else { singlesRem[vi]++; lastSingleDay[vi] = prevLastSingle; }
                     if (isForced) teacherReq[tid] += weight;
                     teacherRemCap[tid] += weight;
-                    usedDay[vi][d] = 0; gradeDay[v.grade_id][d] -= weight; teacherDay[tid][d] -= weight;
+                    if (markUsed) usedDay[vi][d] = 0; gradeDay[v.grade_id][d] -= weight; teacherDay[tid][d] -= weight;
                     if (stop) return false;
                 }
             }
@@ -440,9 +464,12 @@ function polish(placements, ctx, opts) {
                 if (totals[d] === 0) { freeDays++; continue; }
                 const hrs = hbd[t][d]; let first = 99, last = -1; for (const h of hrs) { if (h < first) first = h; if (h > last) last = h; }
                 const occ = new Set(hrs);
-                // Huecos internos (entre primera y última clase): peso suave, para bloques ordenados.
+                // Huecos internos (entre la primera y la última clase): peso suave,
+                // sirve para preferir bloques contiguos y ordenados.
                 gaps += (last - first + 1) - hrs.length;
-                // Pares de horas libres SEGUIDAS en TODO el día (incluye inicio y fin).
+                // Pares de horas libres SEGUIDAS en TODO el día (incluye inicio y fin):
+                // esto evita que un profe entre tarde dejando 2 libres juntas o salga
+                // dejando 2+ libres juntas al final. El motor centra el bloque de clases.
                 let run = 0;
                 for (let h = 0; h < Hd[d]; h++) {
                     if (occ.has(h)) { run = 0; }
@@ -452,7 +479,7 @@ function polish(placements, ctx, opts) {
             }
             imb += (mx - mn);
         }
-        // Prioridad: días libres > evitar 2 libres seguidas (todo el día) > huecos internos > balance.
+        // Prioridad: días libres > evitar 2 horas libres seguidas (todo el día) > huecos internos > balance.
         return { freeDays, gaps, consec, imb, obj: 1000 * freeDays + 60 * consec + 10 * gaps + 3 * imb };
     }
 
